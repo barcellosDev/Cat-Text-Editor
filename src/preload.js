@@ -7,6 +7,6 @@ contextBridge.exposeInMainWorld('electron', {
 
     onOpenFile: (callback) => {        
         ipcRenderer.send('read-file')
-        ipcRenderer.on('receive-file', (ev, text) => callback(text))
+        ipcRenderer.on('receive-file', (ev, fileData) => callback(fileData))
     }
 })

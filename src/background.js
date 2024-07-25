@@ -106,10 +106,16 @@ async function createWindow() {
     const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
 
     if (!result.canceled) {
-      readFile(result.filePaths[0], (err, data) => {
+      const filePath = result.filePaths[0]
+
+      readFile(filePath, (err, data) => {
         if (err) throw err
 
-        win.webContents.send('receive-file', data)
+        win.webContents.send('receive-file', {
+          text: data.toString('utf-8'),
+          name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
+          path: filePath
+        })
       })
     }
   })

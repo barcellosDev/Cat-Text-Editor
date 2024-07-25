@@ -1,10 +1,12 @@
 <script setup>
 
-import { onMounted, defineProps } from 'vue';
+import { onMounted } from 'vue';
 import EditorTabs from '../EditorTabs.vue';
-import { handleKeyBoard, renderText, textMatrix, cursorPos, parseText } from './text-core.js'
+import { handleKeyBoard, highlightText, textMatrix, cursorPos, parseText, renderText } from './text-core.js'
+import { useFilesStore } from '@/store/files';
 
-const props = defineProps(['text'])
+const store = useFilesStore()
+const selectedFile = store.getSelectedFile()
 
 let textEditorMainContainer
 
@@ -14,9 +16,9 @@ onMounted(() => {
 
     reset()
 
-    if (props.text) { // has loaded file
-        textMatrix.value = parseText(props.text)
-        window['text-editor-content'].innerHTML = renderText()
+    if (selectedFile) { // has loaded file
+        textMatrix.value = parseText(selectedFile.text)
+        window['text-editor-content'].innerHTML = highlightText()
     }
 })
 
@@ -28,7 +30,7 @@ function reset() {
 
 window.onkeydown = ev => {
     handleKeyBoard(ev)
-    window['text-editor-content'].innerHTML = renderText()
+    window['text-editor-content'].innerHTML = highlightText()
 
     textEditorMainContainer
         .querySelectorAll('#text-editor-lines, #text-editor-content')
@@ -74,8 +76,6 @@ window.onkeydown = ev => {
 #text-editor-content {
     position: relative;
     cursor: text;
-    overflow-x: auto;
-    overflow-y: hidden;
     width: 100%;
 }
 </style>

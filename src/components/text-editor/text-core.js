@@ -153,15 +153,16 @@ function isCharValid(keyCode) {
     return (keyCode > 47 && keyCode < 58) || // number keys
         notPrint[keyCode] ||
         keyCode == 32 || keyCode == 9 ||
+        keyCode == 226 ||
         (keyCode > 64 && keyCode < 91) || // letter keys
         (keyCode > 95 && keyCode < 112) || // numpad keys
-        (keyCode > 185 && keyCode < 193) || // ;=,-./` (in order)
+        (keyCode > 185 && keyCode <= 193) || // ;=,-./` (in order)
         (keyCode > 218 && keyCode < 223) // [\]' (in order)
 }
 
 
 
-function renderText() {
+function highlightText() {
     let result = ''
 
     textMatrix.value.forEach((line, i) => {
@@ -173,10 +174,7 @@ function renderText() {
                 result += cursorHTML()
             }
 
-            if (char === '')
-                char = '&nbsp;'
-
-            result += char
+            result += char.replace(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
 
             if (i === cursorPos.value[0] && j + 1 === cursorPos.value[1]) {
                 result += cursorHTML()
@@ -190,11 +188,21 @@ function renderText() {
     return result
 }
 
+function renderText() {
+    let result = ''
+
+    textMatrix.value.forEach(line => {
+        result += line.join('') + '\n'
+    })
+
+    return result
+}
+
 function parseText(text) {
     const lines = text.split('\n')
 
     lines.forEach((line, i) => {
-        lines[i] = line.split('')
+        lines[i] = line.replace('\r', '').split('')
     })
 
     return lines
@@ -206,6 +214,7 @@ function cursorHTML() {
 
 export {
     handleKeyBoard,
+    highlightText,
     renderText,
     textMatrix,
     cursorPos,

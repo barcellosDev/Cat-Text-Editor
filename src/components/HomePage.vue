@@ -1,10 +1,22 @@
 <script setup>
 import router from '@/router'
+import { useFilesStore } from '@/store/files';
+
+const store = useFilesStore()
 
 function openFile() {
-    window.electron.onOpenFile((text) => {
-        console.log(text)
+    window.electron.onOpenFile(fileData => {
+        store.pushFile(fileData)
+        router.push('editor')
     })
+}
+
+function newFile() {
+    store.pushFile({
+      name: 'Untitled 1',
+      text: ''
+     })
+    router.push('editor')
 }
 
 </script>
@@ -18,7 +30,7 @@ function openFile() {
             </div>
             <div id="links">
                 <p>
-                    <a @click="router.push('editor')">New file</a>
+                    <a @click="newFile()">New file</a>
                 </p>
                 <p><a @click="openFile()">Open existing file</a></p>
             </div>
