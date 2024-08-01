@@ -13,9 +13,9 @@ function openFile() {
 
 function newFile() {
     store.pushFile({
-      name: 'Untitled 1',
-      text: ''
-     })
+        name: 'Untitled 1',
+        text: ''
+    })
     router.push('editor')
 }
 
@@ -23,10 +23,10 @@ function newFile() {
 
 <template>
     <div id="container">
-        
+
         <div id="intro">
             <div id="intro-logo">
-                
+
             </div>
             <div id="links">
                 <p>
@@ -40,7 +40,6 @@ function newFile() {
 </template>
 
 <style scoped>
-
 a {
     text-decoration: none;
     color: white;
@@ -68,5 +67,4 @@ a {
 #links {
     margin-top: 20px;
 }
-
 </style>

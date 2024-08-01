@@ -17,11 +17,8 @@ export const useFilesStore = defineStore('files', () => {
 
     removeAnySelected()
 
-    files.value
-      .filter(fileObj => fileObj?.selected)
-      .forEach(file => delete file.selected)
-
     files.value.push(Object.assign(fileObj, { selected: true }))
+    selectedFileIndex.value = files.value.length - 1
   }
 
   function removeAnySelected() {

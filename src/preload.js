@@ -5,8 +5,8 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('change-route', (event, path) => callback(path))
     },
 
-    onOpenFile: (callback) => {        
+    onOpenFile: (callback) => {
+        ipcRenderer.once('receive-file', (ev, fileData) => callback(fileData))
         ipcRenderer.send('read-file')
-        ipcRenderer.on('receive-file', (ev, fileData) => callback(fileData))
     }
 })
