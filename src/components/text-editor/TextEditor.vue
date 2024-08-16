@@ -1,12 +1,17 @@
 <script setup>
 
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import EditorTabs from '../EditorTabs.vue';
-import { handleKeyBoard, highlightText, textMatrix, cursorPos, parseText, renderText } from './text-core.js'
+import { useTextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
+
+
+const TextEditor = useTextEditor()
 
 const store = useFilesStore()
 const selectedFile = store.getSelectedFile()
+
+const cursor = ref(null)
 
 let textEditorMainContainer
 
@@ -17,24 +22,49 @@ onMounted(() => {
     reset()
 
     if (selectedFile) { // has loaded file
-        textMatrix.value = parseText(selectedFile.text)
-        window['text-editor-content'].innerHTML = highlightText()
+        TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
+        TextEditor.renderText(window['text-editor-content'])
+        TextEditor.renderLineCount(window['text-editor-lines'])
     }
 })
 
 function reset() {
-    textMatrix.value = [[]]
-    cursorPos.value = [0, 0]
+    TextEditor.textBuffer.value = [[]]
+    TextEditor.cursorPos.value = [0, 0]
 }
 
 
 window.onkeydown = ev => {
-    handleKeyBoard(ev)
-    window['text-editor-content'].innerHTML = highlightText()
+    TextEditor.handleKeyBoard(ev)
+    TextEditor.renderText(window['text-editor-content'])
 
     textEditorMainContainer
         .querySelectorAll('#text-editor-lines, #text-editor-content')
         .forEach(el => el.style.height = `${textEditorMainContainer.scrollHeight}px`)
+}
+
+function setCursorPos(ev) {
+    ev.preventDefault()
+
+    const selectedLine = ev.path.filter(elem => elem?.classList?.contains('line'))[0] ?? null
+    
+    TextEditor.cursorPos.value[0] = selectedLine.bufferY
+
+    const charPos = Math.round(Math.abs(ev.offsetX) / TextEditor.fontWidth)
+
+    TextEditor.cursorPos.value[1] = charPos
+
+    const y = selectedLine.bufferY * TextEditor.LINE_HEIGHT
+    let x = charPos * TextEditor.fontWidth
+
+    if (x > selectedLine.firstElementChild.offsetWidth)
+        x = selectedLine.firstElementChild.offsetWidth
+
+    console.log(ev)
+    console.log(charPos)
+
+    cursor.value.style.top = `${y}px`
+    cursor.value.style.left = `${x}px`
 }
 
 </script>
@@ -44,14 +74,16 @@ window.onkeydown = ev => {
 
     <div id="text-editor-main-container">
         <div id="text-editor-lines">
-            <div class="line-count" :class="{'line-count-selected': index == cursorPos[0]}" v-for="(line, index) in textMatrix" :key="index">
-                {{ index+1 }}
-            </div>
         </div>
 
-        <div id="text-editor-content">
-            <div class="line line-selected">
-                <span class="root"></span>
+
+        <div id="text-editor-content-container">
+            <div id="cursor" ref="cursor"></div>
+
+            <div id="text-editor-content" @mouseup="setCursorPos($event)">
+                <div class="line line-selected">
+                    <span class="root"></span>
+                </div>
             </div>
         </div>
     </div>
@@ -64,6 +96,10 @@ window.onkeydown = ev => {
     height: 100%;
     display: flex;
     overflow-y: auto;
+}
+
+#text-editor-content-container {
+    position: relative;
 }
 
 #text-editor-lines {
@@ -83,11 +119,22 @@ window.onkeydown = ev => {
 <style>
 #cursor {
     width: 2px;
-    height: 100%;
+    height: 23px; /* HAS TO BE ON SAME HEIGHT OF THE LINE */
     background-color: #cacaca;
-    display: inline-block;
     position: absolute;
+    animation: cursor-blink 1s linear infinite;
 }
+
+@keyframes cursor-blink {
+    0% {
+        visibility: hidden;
+    }
+
+    100% {
+        visibility: visible;
+    }
+}
+
 
 .line-count,
 .line {

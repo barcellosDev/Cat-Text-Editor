@@ -1,9 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { highlightText, textMatrix, parseText } from '@/components/text-editor/text-core.js'
 
 export const useFilesStore = defineStore('files', () => {
-  const files = ref([])
+  const files = []
   const selectedFileIndex = ref(null)
 
   function pushFile(fileObj) {
@@ -17,22 +16,22 @@ export const useFilesStore = defineStore('files', () => {
 
     removeAnySelected()
 
-    files.value.push(Object.assign(fileObj, { selected: true }))
-    selectedFileIndex.value = files.value.length - 1
+    files.push(Object.assign(fileObj, { selected: true }))
+    selectedFileIndex.value = files.length - 1
   }
 
   function removeAnySelected() {
-    files.value
+    files
       .filter(fileObj => fileObj?.selected)
       .forEach(file => delete file.selected)
   }
 
   function getFile(index) {
-    return files.value[index] ?? null
+    return files[index] ?? null
   }
 
   function getSelectedFile() {
-    return files.value.filter(fileObj => fileObj?.selected)[0] ?? null
+    return files.filter(fileObj => fileObj?.selected)[0] ?? null
   }
 
   function setFileSelected(index) {
@@ -43,9 +42,6 @@ export const useFilesStore = defineStore('files', () => {
 
     if (file)
       file.selected = true
-
-    textMatrix.value = parseText(file.text)
-    window['text-editor-content'].innerHTML = highlightText()
   }
 
   return {
