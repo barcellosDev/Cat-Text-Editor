@@ -1,56 +1,72 @@
 import { ref } from "vue"
 
-class TextEditor {
+export class TextEditor {
+    static editorElement = null
+    static LINE_HEIGHT = 23
 
-    LINE_HEIGHT = 23
+    static cursorElement = HTMLElement.prototype
 
-    config = {
+    static config = {
         fontSize: 16,
         fontFamily: 'Consolas'
     }
 
-    fontWidth = (() => {
+    static fontWidth = (() => {
         const context = document.createElement('canvas').getContext('2d')
         context.font = `${this.config.fontSize}px ${this.config.fontFamily}`
         return context.measureText('A').width
     })()
 
-    textBuffer = ref([
+    static textBuffer = ref([
         []
     ])
 
-    cursorPos = ref([0, 0]) // linha, coluna => i, j
+    static cursorBuffer = ref([0, 0])
 
-    notPrint = {
-        37: this.decrCharCursorPos, // arrowLeft
+    static notPrint = {
+        37: () => {
+            this.decrementColumnBufferPos()
+        }, // arrowLeft
         38: () => { // arrowUp
-            this.decrLineCursorPos()
+            this.decrementRowBufferPos()
 
-            if (this.cursorPos.value[1] > this.textBuffer.value[this.cursorPos.value[0]].length)
-                this.setCharCursorPos(this.textBuffer.value[this.cursorPos.value[0]].length)
+            if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length)
+                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
         },
-        39: this.incrCharCursorPos, // arrowRight
+        39: () => {
+            this.incrementColumnBufferPos()
+        }, // arrowRight
         40: () => { // arrowDown
-            this.incrLineCursorPos()
+            this.incrementRowBufferPos()
 
-            if (this.cursorPos.value[1] > this.textBuffer.value[this.cursorPos.value[0]].length)
-                this.setCharCursorPos(this.textBuffer.value[this.cursorPos.value[0]].length)
+            if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length)
+                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
         },
         13: () => { // enter
             this.insertLine()
-            this.cursorPos.value[0]++
-            this.setCharCursorPos(0)
+            this.incrementRowBufferPos()
+            this.setColumnBufferPos(0)
         },
-        8: this.handleBackSpace, // backspace
+        8: () => {
+            this.handleBackSpace()
+        }, // backspace
         35: () => { // end
-            this.setCharCursorPos(this.textBuffer.value[this.cursorPos.value[0]].length)
+            this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
         },
         36: () => { // home
-            this.setCharCursorPos(0)
+            this.setColumnBufferPos(0)
         }
     }
 
-    handleKeyBoard(ev) {
+    static setEditorElement(editor) {
+        this.editorElement = editor
+    }
+
+    static setCursorElement(cursor) {
+        this.cursorElement = cursor
+    }
+
+    static handleKeyBoard(ev) {
         ev.preventDefault()
 
         const keyCode = ev.keyCode
@@ -68,9 +84,8 @@ class TextEditor {
         if (keyCode === 9) { // tab
             char = ''
 
-            for (let counter = 1; counter <= 4; counter++) {
+            for (let counter = 1; counter <= 2; counter++) {
                 this.insertChar(char)
-                this.cursorPos.value[1]++
             }
 
             return
@@ -81,90 +96,49 @@ class TextEditor {
         }
 
         this.insertChar(char)
-        this.cursorPos.value[1]++
+        this.renderLine()
     }
 
-    handleBackSpace() {
+    static handleBackSpace() {
         if (this.textBuffer.value.length === 1 && this.textBuffer.value[0].length === 0) {
             return
         }
 
-        if (this.cursorPos.value[0] > 0 && this.cursorPos.value[1] === 0) {
-            const deletedLine = this.textBuffer.value.splice(this.cursorPos.value[0], 1)[0]
+        if (this.getRowCursorBufferPos() > 0 && this.getColumnCursorBufferPos() === 0) {
+            const deletedLine = this.textBuffer.value.splice(this.getRowCursorBufferPos(), 1)[0]
 
-            this.decrLineCursorPos()
-            this.setCharCursorPos(this.textBuffer.value[this.cursorPos.value[0]].length)
+            this.decrementRowBufferPos()
+            this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
 
-            this.textBuffer.value[this.cursorPos.value[0]] = this.textBuffer.value[this.cursorPos.value[0]].concat(deletedLine)
+            this.textBuffer.value[this.getRowCursorBufferPos()] = this.textBuffer.value[this.getRowCursorBufferPos()].concat(deletedLine)
             return
         }
 
-        if (this.textBuffer.value.length === 1 && this.cursorPos.value[1] === 0)
+        if (this.textBuffer.value.length === 1 && this.getColumnCursorBufferPos() === 0)
             return
 
 
-        if (this.cursorPos.value[1] < this.textBuffer.value[this.cursorPos.value[0]].length) {
-            this.textBuffer.value[this.cursorPos.value[0]].splice(this.cursorPos.value[1] - 1, 1)
-            this.decrCharCursorPos()
+        if (this.getColumnCursorBufferPos() < this.textBuffer.value[this.getRowCursorBufferPos()].length) {
+            this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos() - 1, 1)
+            this.decrementColumnBufferPos()
         } else {
-            this.textBuffer.value[this.cursorPos.value[0]].pop()
-            this.decrCharCursorPos()
+            this.textBuffer.value[this.getRowCursorBufferPos()].pop()
+            this.decrementColumnBufferPos()
         }
     }
 
-    setCharCursorPos(pos) {
-        if (pos < 0)
-            return 0
+    static insertLine() {
+        const newLine = this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), Infinity)
 
-        this.cursorPos.value[1] = pos
+        this.textBuffer.value.splice(this.getRowCursorBufferPos() + 1, 0, newLine)
     }
 
-    // function setLineCursorPos(pos) {
-    //     if (pos <= 0)
-    //         return 0
-
-    //     this.cursorPos.value[0] = pos
-    // }
-
-    decrCharCursorPos() {
-        if (this.cursorPos.value[1] <= 0)
-            return 0
-
-        this.cursorPos.value[1]--
+    static insertChar(char) {
+        this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), 0, char)
+        this.incrementColumnBufferPos()
     }
 
-    decrLineCursorPos() {
-        if (this.cursorPos.value[0] <= 0)
-            return 0
-
-        this.cursorPos.value[0]--
-    }
-
-    incrLineCursorPos() {
-        if (this.cursorPos.value[0] >= this.textBuffer.value.length - 1)
-            return
-
-        this.cursorPos.value[0]++
-    }
-
-    incrCharCursorPos() {
-        if (this.cursorPos.value[1] >= this.textBuffer.value[this.cursorPos.value[0]].length)
-            return
-
-        this.cursorPos.value[1]++
-    }
-
-    insertLine() {
-        const newLine = this.textBuffer.value[this.cursorPos.value[0]].splice(this.cursorPos.value[1], Infinity)
-
-        this.textBuffer.value.splice(this.cursorPos.value[0] + 1, 0, newLine)
-    }
-
-    insertChar(char) {
-        this.textBuffer.value[this.cursorPos.value[0]].splice(this.cursorPos.value[1], 0, char)
-    }
-
-    isCharValid(keyCode) {
+    static isCharValid(keyCode) {
         return (keyCode > 47 && keyCode < 58) || // number keys
             this.notPrint[keyCode] ||
             keyCode == 32 || keyCode == 9 ||
@@ -175,46 +149,122 @@ class TextEditor {
             (keyCode > 218 && keyCode < 223) // [\]' (in order)
     }
 
-    getScreenPosFromBufferPos(line, col) {
+    static setColumnBufferPos(pos) {
+        if (pos < 0)
+            return 0
 
-    }
-
-    getBufferPosFromScreenPos(x, y) {
-        // line height 23px
-
-    }
-
-    renderLineCount(editorLinesElement) {
-        for (const key of this.textBuffer.value.keys()) {
-            const divLineCount = document.createElement('div')
-            divLineCount.bufferY = key
-            divLineCount.className = `line-count ${key === this.cursorPos.value[0] ? 'line-count-selected' : ''}`
-            divLineCount.innerText = key+1
-
-            editorLinesElement.appendChild(divLineCount)
+        if (pos > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
+            this.cursorBuffer.value[1] = this.textBuffer.value[this.getRowCursorBufferPos()].length
+            return
         }
+
+        this.cursorBuffer.value[1] = pos
+
+        const x = TextEditor.fontWidth * pos
+        this.cursorElement.value.style.left = `${x}px`
     }
 
-    renderText(editor) {
-        editor.innerHTML = ''
+    static decrementColumnBufferPos() {
+        
+        if (this.cursorBuffer.value[1] <= 0)
+            return 0
+        
+        this.cursorBuffer.value[1]--
+        
+        const pxFromStyle = Number(this.cursorElement.value.style.left.split('px')[0])
+        const x = pxFromStyle - TextEditor.fontWidth
+
+        this.cursorElement.value.style.left = `${x}px`
+    }
+
+    static incrementColumnBufferPos() {
+        
+        if (this.cursorBuffer.value[1] >= this.textBuffer.value[this.cursorBuffer.value[0]].length)
+            return
+        
+        this.cursorBuffer.value[1]++
+
+        const pxFromStyle = Number(this.cursorElement.value.style.left.split('px')[0])
+        const x = pxFromStyle + TextEditor.fontWidth
+
+        this.cursorElement.value.style.left = `${x}px`
+    }
+
+    static setRowBufferPos(pos) {
+        if (pos < 0)
+            return 0
+
+        if (pos > this.textBuffer.value.length) {
+            this.cursorBuffer.value[1] = this.textBuffer.value.length
+            return
+        }
+
+        this.cursorBuffer.value[0] = pos
+
+        const y = TextEditor.LINE_HEIGHT * pos
+        this.cursorElement.value.style.top = `${y}px`
+    }
+
+    static decrementRowBufferPos() {
+        if (this.cursorBuffer.value[0] <= 0)
+            return 0
+
+        this.cursorBuffer.value[0]--
+
+        const y = this.cursorElement.value.offsetTop - TextEditor.LINE_HEIGHT
+        this.cursorElement.value.style.top = `${y}px`
+    }
+
+    static incrementRowBufferPos() {
+        if (this.cursorBuffer.value[0] >= this.textBuffer.value.length - 1)
+            return
+
+        this.cursorBuffer.value[0]++
+
+        const y = this.cursorElement.value.offsetTop + TextEditor.LINE_HEIGHT
+        this.cursorElement.value.style.top = `${y}px`
+    }
+
+    static getRowCursorBufferPos() {
+        return this.cursorBuffer.value[0]
+    }
+
+    static getColumnCursorBufferPos() {
+        return this.cursorBuffer.value[1]
+    }
+
+    static renderText() {
+        this.editorElement.innerHTML = ''
 
         this.textBuffer.value.forEach((line, i) => {
             const divLine = document.createElement('div')
-            divLine.className = `line ${i === this.cursorPos.value[0] ? 'line-selected' : ''}`
+            divLine.className = `line ${i === this.getRowCursorBufferPos() ? 'line-selected' : ''}`
             divLine.bufferY = i
+            divLine.setAttribute('buffer-y', i)
 
-            const spanRoot = document.createElement('span')
-            spanRoot.className = 'root'
-            spanRoot.innerHTML = line.join('').replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
+            const spanRoot = this.buildRootSpan(line)
 
             divLine.appendChild(spanRoot)
-            editor.appendChild(divLine)
+            this.editorElement.appendChild(divLine)
         })
-
-        return editor
     }
 
-    parseText(text) {
+    static buildRootSpan(line) {
+        const spanRoot = document.createElement('span')
+        spanRoot.className = 'root'
+        spanRoot.innerHTML = line.join('').replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
+        return spanRoot
+    }
+
+    static renderLine() {
+        const currentLine = document.querySelector(`[buffer-y="${this.cursorBuffer.value[0]}"]`)
+        currentLine.firstElementChild?.remove?.()
+
+        const currentBufferLine = this.textBuffer.value[this.cursorBuffer.value[0]]
+        currentLine.appendChild( this.buildRootSpan(currentBufferLine) )
+    }
+
+    static parseText(text) {
         const lines = text.split('\n')
 
         lines.forEach((line, i) => {
@@ -223,8 +273,4 @@ class TextEditor {
 
         return lines
     }
-}
-
-export function useTextEditor() {
-    return new TextEditor()
 }

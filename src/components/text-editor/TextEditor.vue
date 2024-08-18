@@ -2,11 +2,8 @@
 
 import { onMounted, ref } from 'vue';
 import EditorTabs from '../EditorTabs.vue';
-import { useTextEditor } from './text-core.js'
+import { TextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
-
-
-const TextEditor = useTextEditor()
 
 const store = useFilesStore()
 const selectedFile = store.getSelectedFile()
@@ -15,7 +12,11 @@ const cursor = ref(null)
 
 let textEditorMainContainer
 
-onMounted(() => {
+onMounted(() => {    
+    const editor = document.querySelector('[cat-text-editor]')
+    TextEditor.setEditorElement(editor)
+    TextEditor.setCursorElement(cursor)
+
     textEditorMainContainer = document.getElementById('text-editor-main-container')
     textEditorMainContainer.style.height = `calc(100% - ${textEditorMainContainer.offsetTop}px)`
 
@@ -23,45 +24,38 @@ onMounted(() => {
 
     if (selectedFile) { // has loaded file
         TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
-        TextEditor.renderText(window['text-editor-content'])
-        TextEditor.renderLineCount(window['text-editor-lines'])
+        TextEditor.renderText()
     }
 })
 
 function reset() {
     TextEditor.textBuffer.value = [[]]
-    TextEditor.cursorPos.value = [0, 0]
+    TextEditor.cursorBuffer.value = [0, 0]
 }
 
 
 window.onkeydown = ev => {
     TextEditor.handleKeyBoard(ev)
-    TextEditor.renderText(window['text-editor-content'])
 
     textEditorMainContainer
         .querySelectorAll('#text-editor-lines, #text-editor-content')
         .forEach(el => el.style.height = `${textEditorMainContainer.scrollHeight}px`)
 }
 
-function setCursorPos(ev) {
-    ev.preventDefault()
-
+function setScreenCursorPos(ev) {
     const selectedLine = ev.path.filter(elem => elem?.classList?.contains('line'))[0] ?? null
-    
-    TextEditor.cursorPos.value[0] = selectedLine.bufferY
+
+    TextEditor.setRowBufferPos(selectedLine.bufferY)
 
     const charPos = Math.round(Math.abs(ev.offsetX) / TextEditor.fontWidth)
 
-    TextEditor.cursorPos.value[1] = charPos
+    TextEditor.setColumnBufferPos(charPos)
 
     const y = selectedLine.bufferY * TextEditor.LINE_HEIGHT
     let x = charPos * TextEditor.fontWidth
 
     if (x > selectedLine.firstElementChild.offsetWidth)
         x = selectedLine.firstElementChild.offsetWidth
-
-    console.log(ev)
-    console.log(charPos)
 
     cursor.value.style.top = `${y}px`
     cursor.value.style.left = `${x}px`
@@ -74,13 +68,16 @@ function setCursorPos(ev) {
 
     <div id="text-editor-main-container">
         <div id="text-editor-lines">
+            <div v-for="(key, i) in TextEditor.textBuffer.value.keys()" :key="i" class="line-count"
+                :class="{ 'line-count-selected': key === TextEditor.cursorBuffer.value[0]}">
+                {{ key + 1 }}
+            </div>
         </div>
-
 
         <div id="text-editor-content-container">
             <div id="cursor" ref="cursor"></div>
 
-            <div id="text-editor-content" @mouseup="setCursorPos($event)">
+            <div cat-text-editor id="text-editor-content" @mouseup="setScreenCursorPos($event)">
                 <div class="line line-selected">
                     <span class="root"></span>
                 </div>
@@ -119,7 +116,8 @@ function setCursorPos(ev) {
 <style>
 #cursor {
     width: 2px;
-    height: 23px; /* HAS TO BE ON SAME HEIGHT OF THE LINE */
+    height: 23px;
+    /* HAS TO BE ON SAME HEIGHT OF THE LINE */
     background-color: #cacaca;
     position: absolute;
     animation: cursor-blink 1s linear infinite;
