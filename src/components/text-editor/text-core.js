@@ -1,5 +1,50 @@
 import { ref } from "vue"
 
+class LineModel {
+    element
+
+    constructor(row, index) {
+        this.element = this.buildLine(row, index)
+    }
+
+    removeSelected() {
+        this.element.classList.remove('line-selected')
+    }
+
+    setSelected() {
+        this.element.classList.add('line-selected')
+    }
+
+    update(row = null) {
+        if (!this.element.firstElementChild)
+            throw new Error()
+
+        if (!row)
+            row = TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos()]
+
+        this.element.firstElementChild.remove()
+        this.element.appendChild(this.buildRootSpan(row))
+    }
+
+    buildLine(row, index) {
+        const divLine = document.createElement('div')
+        divLine.className = `line ${index === TextEditor.getRowCursorBufferPos() ? 'line-selected' : ''}`
+        divLine.bufferY = index
+
+        const spanRoot = this.buildRootSpan(row)
+        divLine.appendChild(spanRoot)
+
+        return divLine
+    }
+
+    buildRootSpan(row) {
+        const spanRoot = document.createElement('span')
+        spanRoot.className = 'root'
+        spanRoot.innerHTML = row.join('').replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
+        return spanRoot
+    }
+}
+
 export class TextEditor {
     static editorElement = null
     static LINE_HEIGHT = 23
@@ -23,6 +68,8 @@ export class TextEditor {
 
     static cursorBuffer = ref([0, 0])
 
+    static lineBuffer = []
+
     static notPrint = {
         37: () => {
             this.decrementColumnBufferPos()
@@ -44,8 +91,6 @@ export class TextEditor {
         },
         13: () => { // enter
             this.insertLine()
-            this.incrementRowBufferPos()
-            this.setColumnBufferPos(0)
         },
         8: () => {
             this.handleBackSpace()
@@ -82,11 +127,13 @@ export class TextEditor {
         }
 
         if (keyCode === 9) { // tab
-            char = ''
+            char = ' '
 
             for (let counter = 1; counter <= 2; counter++) {
                 this.insertChar(char)
             }
+
+            this.getLine().update()
 
             return
         }
@@ -96,7 +143,33 @@ export class TextEditor {
         }
 
         this.insertChar(char)
-        this.renderLine()
+        this.getLine().update()
+    }
+
+    static getLine(row = null) {
+        if (!row)
+            row = this.getRowCursorBufferPos()
+
+        return this.lineBuffer[row]
+    }
+
+    static deleteLine(from = null, to = null) {
+        if (!from && !to) {
+            from = this.getRowCursorBufferPos()
+            to = this.getRowCursorBufferPos()
+        }
+
+        for (let index = from; index <= to; index++) {
+            const Line = this.getLine(index)
+            Line.element.remove()
+        }
+
+        let deleteCount = to - from
+
+        if (deleteCount === 0)
+            deleteCount = 1
+
+        this.lineBuffer.splice(from, deleteCount)
     }
 
     static handleBackSpace() {
@@ -107,10 +180,15 @@ export class TextEditor {
         if (this.getRowCursorBufferPos() > 0 && this.getColumnCursorBufferPos() === 0) {
             const deletedLine = this.textBuffer.value.splice(this.getRowCursorBufferPos(), 1)[0]
 
+            this.deleteLine()
+
             this.decrementRowBufferPos()
             this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
 
             this.textBuffer.value[this.getRowCursorBufferPos()] = this.textBuffer.value[this.getRowCursorBufferPos()].concat(deletedLine)
+
+            this.getLine().update()
+            this.rebuildLinesBufferYPositions()
             return
         }
 
@@ -121,16 +199,37 @@ export class TextEditor {
         if (this.getColumnCursorBufferPos() < this.textBuffer.value[this.getRowCursorBufferPos()].length) {
             this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos() - 1, 1)
             this.decrementColumnBufferPos()
+            this.getLine().update()
         } else {
             this.textBuffer.value[this.getRowCursorBufferPos()].pop()
             this.decrementColumnBufferPos()
+            this.getLine().update()
         }
     }
 
     static insertLine() {
-        const newLine = this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), Infinity)
+        const oldLine = this.getLine()
+        const currentDataToConcat = this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), Infinity)
+        oldLine.update()
 
-        this.textBuffer.value.splice(this.getRowCursorBufferPos() + 1, 0, newLine)
+        this.textBuffer.value.splice(this.getRowCursorBufferPos() + 1, 0, currentDataToConcat)
+
+        const newLineBuffer = this.textBuffer.value[this.getRowCursorBufferPos() + 1]
+        const newLineModel = new LineModel(newLineBuffer, this.getRowCursorBufferPos() + 1)
+
+        oldLine.element.parentElement.insertBefore(newLineModel.element, oldLine.element.nextElementSibling)
+        this.lineBuffer.splice(this.getRowCursorBufferPos() + 1, 0, newLineModel)
+
+        this.incrementRowBufferPos()
+        this.setColumnBufferPos(0)
+        this.rebuildLinesBufferYPositions()
+    }
+
+    // OPTIMIZE THIS CODE
+    static rebuildLinesBufferYPositions() {
+        for (let index = this.getRowCursorBufferPos(); index < this.textBuffer.value.length; index++) {
+            this.lineBuffer[index].element.bufferY = index
+        }
     }
 
     static insertChar(char) {
@@ -165,12 +264,12 @@ export class TextEditor {
     }
 
     static decrementColumnBufferPos() {
-        
+
         if (this.cursorBuffer.value[1] <= 0)
             return 0
-        
+
         this.cursorBuffer.value[1]--
-        
+
         const pxFromStyle = Number(this.cursorElement.value.style.left.split('px')[0])
         const x = pxFromStyle - TextEditor.fontWidth
 
@@ -178,10 +277,10 @@ export class TextEditor {
     }
 
     static incrementColumnBufferPos() {
-        
+
         if (this.cursorBuffer.value[1] >= this.textBuffer.value[this.cursorBuffer.value[0]].length)
             return
-        
+
         this.cursorBuffer.value[1]++
 
         const pxFromStyle = Number(this.cursorElement.value.style.left.split('px')[0])
@@ -199,7 +298,11 @@ export class TextEditor {
             return
         }
 
+        this.getLine().removeSelected()
+
         this.cursorBuffer.value[0] = pos
+
+        this.getLine().setSelected()
 
         const y = TextEditor.LINE_HEIGHT * pos
         this.cursorElement.value.style.top = `${y}px`
@@ -209,7 +312,12 @@ export class TextEditor {
         if (this.cursorBuffer.value[0] <= 0)
             return 0
 
+
+        this.getLine().removeSelected()
+
         this.cursorBuffer.value[0]--
+
+        this.getLine().setSelected()
 
         const y = this.cursorElement.value.offsetTop - TextEditor.LINE_HEIGHT
         this.cursorElement.value.style.top = `${y}px`
@@ -219,7 +327,12 @@ export class TextEditor {
         if (this.cursorBuffer.value[0] >= this.textBuffer.value.length - 1)
             return
 
+
+        this.getLine().removeSelected()
+
         this.cursorBuffer.value[0]++
+
+        this.getLine().setSelected()
 
         const y = this.cursorElement.value.offsetTop + TextEditor.LINE_HEIGHT
         this.cursorElement.value.style.top = `${y}px`
@@ -236,32 +349,12 @@ export class TextEditor {
     static renderText() {
         this.editorElement.innerHTML = ''
 
-        this.textBuffer.value.forEach((line, i) => {
-            const divLine = document.createElement('div')
-            divLine.className = `line ${i === this.getRowCursorBufferPos() ? 'line-selected' : ''}`
-            divLine.bufferY = i
-            divLine.setAttribute('buffer-y', i)
+        this.textBuffer.value.forEach((row, index) => {
+            const Line = new LineModel(row, index)
 
-            const spanRoot = this.buildRootSpan(line)
-
-            divLine.appendChild(spanRoot)
-            this.editorElement.appendChild(divLine)
+            this.editorElement.appendChild(Line.element)
+            this.lineBuffer.push(Line)
         })
-    }
-
-    static buildRootSpan(line) {
-        const spanRoot = document.createElement('span')
-        spanRoot.className = 'root'
-        spanRoot.innerHTML = line.join('').replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
-        return spanRoot
-    }
-
-    static renderLine() {
-        const currentLine = document.querySelector(`[buffer-y="${this.cursorBuffer.value[0]}"]`)
-        currentLine.firstElementChild?.remove?.()
-
-        const currentBufferLine = this.textBuffer.value[this.cursorBuffer.value[0]]
-        currentLine.appendChild( this.buildRootSpan(currentBufferLine) )
     }
 
     static parseText(text) {

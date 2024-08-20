@@ -68,9 +68,9 @@ function setScreenCursorPos(ev) {
 
     <div id="text-editor-main-container">
         <div id="text-editor-lines">
-            <div v-for="(key, i) in TextEditor.textBuffer.value.keys()" :key="i" class="line-count"
-                :class="{ 'line-count-selected': key === TextEditor.cursorBuffer.value[0]}">
-                {{ key + 1 }}
+            <div v-for="(line, index) in TextEditor.textBuffer.value" :key="index" class="line-count"
+                :class="{ 'line-count-selected': index === TextEditor.cursorBuffer.value[0]}">
+                {{ index + 1 }}
             </div>
         </div>
 
