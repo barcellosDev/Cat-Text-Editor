@@ -260,7 +260,7 @@ export class TextEditor {
         this.cursorBuffer.value[1] = pos
 
         const x = TextEditor.fontWidth * pos
-        this.cursorElement.value.style.left = `${x}px`
+        this.cursorElement.style.left = `${x}px`
     }
 
     static decrementColumnBufferPos() {
@@ -270,10 +270,10 @@ export class TextEditor {
 
         this.cursorBuffer.value[1]--
 
-        const pxFromStyle = Number(this.cursorElement.value.style.left.split('px')[0])
+        const pxFromStyle = Number(this.cursorElement.style.left.split('px')[0])
         const x = pxFromStyle - TextEditor.fontWidth
 
-        this.cursorElement.value.style.left = `${x}px`
+        this.cursorElement.style.left = `${x}px`
     }
 
     static incrementColumnBufferPos() {
@@ -283,29 +283,27 @@ export class TextEditor {
 
         this.cursorBuffer.value[1]++
 
-        const pxFromStyle = Number(this.cursorElement.value.style.left.split('px')[0])
+        const pxFromStyle = Number(this.cursorElement.style.left.split('px')[0])
         const x = pxFromStyle + TextEditor.fontWidth
 
-        this.cursorElement.value.style.left = `${x}px`
+        this.cursorElement.style.left = `${x}px`
     }
 
     static setRowBufferPos(pos) {
         if (pos < 0)
             return 0
-
+        
         if (pos > this.textBuffer.value.length) {
-            this.cursorBuffer.value[1] = this.textBuffer.value.length
+            this.cursorBuffer.value[0] = this.textBuffer.value.length
             return
         }
 
         this.getLine().removeSelected()
-
         this.cursorBuffer.value[0] = pos
-
         this.getLine().setSelected()
 
         const y = TextEditor.LINE_HEIGHT * pos
-        this.cursorElement.value.style.top = `${y}px`
+        this.cursorElement.style.top = `${y}px`
     }
 
     static decrementRowBufferPos() {
@@ -319,8 +317,8 @@ export class TextEditor {
 
         this.getLine().setSelected()
 
-        const y = this.cursorElement.value.offsetTop - TextEditor.LINE_HEIGHT
-        this.cursorElement.value.style.top = `${y}px`
+        const y = this.cursorElement.offsetTop - TextEditor.LINE_HEIGHT
+        this.cursorElement.style.top = `${y}px`
     }
 
     static incrementRowBufferPos() {
@@ -329,13 +327,11 @@ export class TextEditor {
 
 
         this.getLine().removeSelected()
-
         this.cursorBuffer.value[0]++
-
         this.getLine().setSelected()
 
-        const y = this.cursorElement.value.offsetTop + TextEditor.LINE_HEIGHT
-        this.cursorElement.value.style.top = `${y}px`
+        const y = this.cursorElement.offsetTop + TextEditor.LINE_HEIGHT
+        this.cursorElement.style.top = `${y}px`
     }
 
     static getRowCursorBufferPos() {
@@ -365,5 +361,11 @@ export class TextEditor {
         })
 
         return lines
+    }
+
+    static reset() {
+        TextEditor.textBuffer.value = [[]]
+        TextEditor.cursorBuffer.value = [0, 0]
+        TextEditor.lineBuffer = []
     }
 }

@@ -3,6 +3,9 @@ import { RouterView } from 'vue-router'
 import MainMenu from './components/MainMenu.vue';
 import { onMounted } from 'vue';
 import router from './router';
+import { useFilesStore } from '@/store/files';
+
+const store = useFilesStore()
 
 onMounted(() => {
   window.electron.onChangeRoute(path => {
@@ -16,7 +19,7 @@ onMounted(() => {
     <MainMenu></MainMenu>
 
     <div id="main-content" class="dark-mode-color">
-      <router-view />
+      <router-view :key="store.selectedFileIndex" />
     </div>
   </div>
 </template>

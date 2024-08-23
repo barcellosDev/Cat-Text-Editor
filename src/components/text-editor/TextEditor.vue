@@ -1,6 +1,6 @@
 <script setup>
 
-import { onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
 import EditorTabs from '../EditorTabs.vue';
 import { TextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
@@ -8,19 +8,21 @@ import { useFilesStore } from '@/store/files';
 const store = useFilesStore()
 const selectedFile = store.getSelectedFile()
 
-const cursor = ref(null)
+let textEditorMainContainer, cursor, editor
+var timeoutHandlerToSaveFileOnMemory
 
-let textEditorMainContainer
+onMounted(() => {
+    TextEditor.reset()
 
-onMounted(() => {    
-    const editor = document.querySelector('[cat-text-editor]')
+    editor = document.querySelector('[cat-text-editor]')
+    cursor = document.getElementById('cursor')
+
     TextEditor.setEditorElement(editor)
     TextEditor.setCursorElement(cursor)
 
     textEditorMainContainer = document.getElementById('text-editor-main-container')
     textEditorMainContainer.style.height = `calc(100% - ${textEditorMainContainer.offsetTop}px)`
 
-    reset()
 
     if (selectedFile) { // has loaded file
         TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
@@ -28,14 +30,14 @@ onMounted(() => {
     }
 })
 
-function reset() {
-    TextEditor.textBuffer.value = [[]]
-    TextEditor.cursorBuffer.value = [0, 0]
-}
-
 
 window.onkeydown = ev => {
     TextEditor.handleKeyBoard(ev)
+
+    clearTimeout(timeoutHandlerToSaveFileOnMemory)
+    timeoutHandlerToSaveFileOnMemory = setTimeout(() => {
+        store.files[store.selectedFileIndex].text = editor.innerText
+    }, 1000)
 
     textEditorMainContainer
         .querySelectorAll('#text-editor-lines, #text-editor-content')
@@ -57,8 +59,8 @@ function setScreenCursorPos(ev) {
     if (x > selectedLine.firstElementChild.offsetWidth)
         x = selectedLine.firstElementChild.offsetWidth
 
-    cursor.value.style.top = `${y}px`
-    cursor.value.style.left = `${x}px`
+    cursor.style.top = `${y}px`
+    cursor.style.left = `${x}px`
 }
 
 </script>
@@ -75,7 +77,7 @@ function setScreenCursorPos(ev) {
         </div>
 
         <div id="text-editor-content-container">
-            <div id="cursor" ref="cursor"></div>
+            <div id="cursor"></div>
 
             <div cat-text-editor id="text-editor-content" @mouseup="setScreenCursorPos($event)">
                 <div class="line line-selected">

@@ -20,6 +20,10 @@ export const useFilesStore = defineStore('files', () => {
     selectedFileIndex.value = files.length - 1
   }
 
+  function removeFileRef(index) {
+    files.splice(index, 1)
+  }
+
   function removeAnySelected() {
     files
       .filter(fileObj => fileObj?.selected)
@@ -50,6 +54,7 @@ export const useFilesStore = defineStore('files', () => {
     pushFile,
     getFile,
     setFileSelected,
-    getSelectedFile
+    getSelectedFile,
+    removeFileRef
   }
 })

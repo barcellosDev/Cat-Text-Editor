@@ -1,10 +1,28 @@
 <script setup>
+import router from '@/router';
 import { useFilesStore } from '@/store/files';
 
 const store = useFilesStore()
 
 function selectTab(tabIndex) {
     store.setFileSelected(tabIndex)
+}
+
+function closeTab(tabIndex) {
+    store.removeFileRef(tabIndex)
+
+    if (store.files.length === 0) {
+        router.push('/')
+    }
+
+    if (store.files[tabIndex+1]) {
+        store.setFileSelected(tabIndex+1)
+    }
+
+    if (store.files[tabIndex-1]) {
+        store.setFileSelected(tabIndex-1)
+    }
+
 }
 
 </script>
@@ -14,15 +32,17 @@ function selectTab(tabIndex) {
         
         <div id="group-tabs">
             <div v-for="(file, index) in store.files" 
-            :key="index" 
-            class="tab" 
-            :class="{'tab-selected': file.selected}"
-            @click="selectTab(index)">
-                    {{ file.name }}
+                :key="index" 
+                class="tab" 
+                :class="{'tab-selected': file.selected}"
+                @click="selectTab(index)"
+            >
+                <div>{{ file.name }}</div>
+                <i @click="closeTab(index)" class="fa-solid fa-x tab-close-icon"></i>
             </div>
         </div>
 
-        <div v-if="store.getSelectedFile().path" class="file-path">
+        <div v-if="store.getSelectedFile()?.path" class="file-path">
             {{ store.getSelectedFile().path.replaceAll('\\', ' > ') }}
         </div>
     </div>
@@ -46,6 +66,18 @@ function selectTab(tabIndex) {
     text-align: center;
     white-space: nowrap;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.tab-close-icon {
+    color: #7a7a7a;
+    font-size: .8em;
+}
+.tab-close-icon:hover {
+    color: whitesmoke;
 }
 
 .tab-selected {
