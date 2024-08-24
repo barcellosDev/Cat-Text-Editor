@@ -8,9 +8,15 @@ import { useFilesStore } from '@/store/files';
 const store = useFilesStore()
 
 onMounted(() => {
+  const mainMenuWidth = document.getElementById('main-menu').offsetWidth
+
   window.electron.onChangeRoute(path => {
     router.push({name: path})
   })
+
+  window.onresize = () => {
+    document.getElementById('main-content').style.width = `calc(100% - ${mainMenuWidth}px)`
+  }
 })
 </script>
 

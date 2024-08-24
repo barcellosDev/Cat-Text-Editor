@@ -103,6 +103,7 @@ function setScreenCursorPos(ev) {
 
 #text-editor-content-container {
     position: relative;
+    width: 100%;
 }
 
 #text-editor-lines {
@@ -115,7 +116,7 @@ function setScreenCursorPos(ev) {
 #text-editor-content {
     position: relative;
     cursor: text;
-    width: 100%;
+    height: 100%;
 }
 </style>
 
