@@ -1,4 +1,5 @@
 import { ref } from "vue"
+import highlight from "./colorize-text"
 
 class LineModel {
     element
@@ -40,7 +41,12 @@ class LineModel {
     buildRootSpan(row) {
         const spanRoot = document.createElement('span')
         spanRoot.className = 'root'
-        spanRoot.innerHTML = row.join('').replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
+
+        let rowText = row.join('').replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
+
+        spanRoot.innerHTML = rowText
+        spanRoot.innerHTML = highlight(spanRoot.innerText)
+
         return spanRoot
     }
 }

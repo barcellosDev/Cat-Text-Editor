@@ -45,7 +45,11 @@ window.onkeydown = ev => {
 }
 
 function setScreenCursorPos(ev) {
-    const selectedLine = ev.path.filter(elem => elem?.classList?.contains('line'))[0] ?? null
+    let selectedLine = ev.path.filter(elem => elem?.classList?.contains('line'))[0] ?? null
+
+    if (!selectedLine) {
+        selectedLine = editor.querySelector(`.line:last-child`)
+    }
 
     TextEditor.setRowBufferPos(selectedLine.bufferY)
 
