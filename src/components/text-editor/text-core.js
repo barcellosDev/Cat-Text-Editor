@@ -30,7 +30,6 @@ class LineModel {
     buildLine(row, index) {
         const divLine = document.createElement('div')
         divLine.className = `line ${index === TextEditor.getRowCursorBufferPos() ? 'line-selected' : ''}`
-        divLine.bufferY = index
 
         const spanRoot = this.buildRootSpan(row)
         divLine.appendChild(spanRoot)
@@ -194,7 +193,6 @@ export class TextEditor {
             this.textBuffer.value[this.getRowCursorBufferPos()] = this.textBuffer.value[this.getRowCursorBufferPos()].concat(deletedLine)
 
             this.getLine().update()
-            this.rebuildLinesBufferYPositions()
             return
         }
 
@@ -228,14 +226,6 @@ export class TextEditor {
 
         this.incrementRowBufferPos()
         this.setColumnBufferPos(0)
-        this.rebuildLinesBufferYPositions()
-    }
-
-    // OPTIMIZE THIS CODE
-    static rebuildLinesBufferYPositions() {
-        for (let index = this.getRowCursorBufferPos(); index < this.textBuffer.value.length; index++) {
-            this.lineBuffer[index].element.bufferY = index
-        }
     }
 
     static insertChar(char) {

@@ -51,13 +51,13 @@ function setScreenCursorPos(ev) {
         selectedLine = editor.querySelector(`.line:last-child`)
     }
 
-    TextEditor.setRowBufferPos(selectedLine.bufferY)
+    const linePos = Math.floor(selectedLine.offsetTop / TextEditor.LINE_HEIGHT)
+    TextEditor.setRowBufferPos(linePos)
 
     const charPos = Math.round(Math.abs(ev.offsetX) / TextEditor.fontWidth)
-
     TextEditor.setColumnBufferPos(charPos)
 
-    const y = selectedLine.bufferY * TextEditor.LINE_HEIGHT
+    const y = linePos * TextEditor.LINE_HEIGHT
     let x = charPos * TextEditor.fontWidth
 
     if (x > selectedLine.firstElementChild.offsetWidth)
