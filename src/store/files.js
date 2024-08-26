@@ -22,6 +22,7 @@ export const useFilesStore = defineStore('files', () => {
 
   function removeFileRef(index) {
     files.splice(index, 1)
+    selectedFileIndex.value = files.length - 1
   }
 
   function removeAnySelected() {

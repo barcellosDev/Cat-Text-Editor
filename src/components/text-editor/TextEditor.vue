@@ -20,14 +20,32 @@ onMounted(() => {
     TextEditor.setEditorElement(editor)
     TextEditor.setCursorElement(cursor)
 
-    textEditorMainContainer = document.getElementById('text-editor-main-container')
-    textEditorMainContainer.style.height = `calc(100% - ${textEditorMainContainer.offsetTop}px)`
+    editor.onmouseup = (ev) => {
+        setScreenCursorPos(ev)
 
+        TextEditor.selectionBuffer[1] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
+
+        editor.onmousemove = null
+    }
+    
+    editor.onmousedown = (ev) => {
+        setScreenCursorPos(ev)
+
+        TextEditor.selectionBuffer[0] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
+
+        editor.onmousemove = (ev) => {
+            setScreenCursorPos(ev)
+            TextEditor.selectionBuffer[1] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
+        }
+    }
 
     if (selectedFile) { // has loaded file
         TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
         TextEditor.renderText()
     }
+    
+    textEditorMainContainer = document.getElementById('text-editor-main-container')
+    textEditorMainContainer.style.height = `calc(100% - ${textEditorMainContainer.offsetTop}px)`
 })
 
 
@@ -37,7 +55,7 @@ window.onkeydown = ev => {
     clearTimeout(timeoutHandlerToSaveFileOnMemory)
     timeoutHandlerToSaveFileOnMemory = setTimeout(() => {
         store.files[store.selectedFileIndex].text = editor.innerText
-    }, 1000)
+    }, 100)
 
     textEditorMainContainer
         .querySelectorAll('#text-editor-lines, #text-editor-content')
@@ -54,17 +72,9 @@ function setScreenCursorPos(ev) {
     const linePos = Math.floor(selectedLine.offsetTop / TextEditor.LINE_HEIGHT)
     TextEditor.setRowBufferPos(linePos)
 
-    const charPos = Math.round(Math.abs(ev.offsetX) / TextEditor.fontWidth)
+    const offsetX = ev.offsetX > selectedLine.firstElementChild.offsetWidth ? selectedLine.firstElementChild.offsetWidth : Math.abs(ev.offsetX)
+    const charPos = Math.round(offsetX / TextEditor.fontWidth)
     TextEditor.setColumnBufferPos(charPos)
-
-    const y = linePos * TextEditor.LINE_HEIGHT
-    let x = charPos * TextEditor.fontWidth
-
-    if (x > selectedLine.firstElementChild.offsetWidth)
-        x = selectedLine.firstElementChild.offsetWidth
-
-    cursor.style.top = `${y}px`
-    cursor.style.left = `${x}px`
 }
 
 </script>
@@ -83,7 +93,7 @@ function setScreenCursorPos(ev) {
         <div id="text-editor-content-container">
             <div id="cursor"></div>
 
-            <div cat-text-editor id="text-editor-content" @mouseup="setScreenCursorPos($event)">
+            <div cat-text-editor id="text-editor-content">
                 <div class="line line-selected">
                     <span class="root"></span>
                 </div>
@@ -118,28 +128,22 @@ function setScreenCursorPos(ev) {
     cursor: text;
     height: 100%;
 }
-</style>
 
-<style>
+#text-editor-content ::selection {
+    background-color: #569cd64b;
+}
+
 #cursor {
     width: 2px;
     height: 23px;
     /* HAS TO BE ON SAME HEIGHT OF THE LINE */
     background-color: #cacaca;
     position: absolute;
-    animation: cursor-blink 1s linear infinite;
 }
 
-@keyframes cursor-blink {
-    0% {
-        visibility: hidden;
-    }
+</style>
 
-    100% {
-        visibility: visible;
-    }
-}
-
+<style>
 
 .line-count,
 .line {

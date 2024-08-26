@@ -1,54 +1,5 @@
 import { ref } from "vue"
-import highlight from "./colorize-text"
-
-class LineModel {
-    element
-
-    constructor(row, index) {
-        this.element = this.buildLine(row, index)
-    }
-
-    removeSelected() {
-        this.element.classList.remove('line-selected')
-    }
-
-    setSelected() {
-        this.element.classList.add('line-selected')
-    }
-
-    update(row = null) {
-        if (!this.element.firstElementChild)
-            throw new Error()
-
-        if (!row)
-            row = TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos()]
-
-        this.element.firstElementChild.remove()
-        this.element.appendChild(this.buildRootSpan(row))
-    }
-
-    buildLine(row, index) {
-        const divLine = document.createElement('div')
-        divLine.className = `line ${index === TextEditor.getRowCursorBufferPos() ? 'line-selected' : ''}`
-
-        const spanRoot = this.buildRootSpan(row)
-        divLine.appendChild(spanRoot)
-
-        return divLine
-    }
-
-    buildRootSpan(row) {
-        const spanRoot = document.createElement('span')
-        spanRoot.className = 'root'
-
-        let rowText = row.join('').replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
-
-        spanRoot.innerHTML = rowText
-        spanRoot.innerHTML = highlight(spanRoot.innerText)
-
-        return spanRoot
-    }
-}
+import { LineModel } from "./line-model"
 
 export class TextEditor {
     static editorElement = null
@@ -74,6 +25,8 @@ export class TextEditor {
     static cursorBuffer = ref([0, 0])
 
     static lineBuffer = []
+
+    static selectionBuffer = [[], []]
 
     static notPrint = {
         37: () => {
@@ -158,27 +111,80 @@ export class TextEditor {
         return this.lineBuffer[row]
     }
 
-    static deleteLine(from = null, to = null) {
-        if (!from && !to) {
-            from = this.getRowCursorBufferPos()
-            to = this.getRowCursorBufferPos()
-        }
+    static deleteLine(row = null) {
+        if (!row)
+            row = this.getRowCursorBufferPos()
 
-        for (let index = from; index <= to; index++) {
-            const Line = this.getLine(index)
-            Line.element.remove()
-        }
+        const Line = this.getLine(row)
 
-        let deleteCount = to - from
-
-        if (deleteCount === 0)
-            deleteCount = 1
-
-        this.lineBuffer.splice(from, deleteCount)
+        Line.element.remove()
+        this.lineBuffer.splice(row, 1)
     }
 
     static handleBackSpace() {
-        if (this.textBuffer.value.length === 1 && this.textBuffer.value[0].length === 0) {
+        if (this.getRowCursorBufferPos() === 0 && this.getColumnCursorBufferPos() === 0) {
+            return
+        }
+
+        const selectionStartRow = this.selectionBuffer[0][0]
+        const selectionEndRow = this.selectionBuffer[1][0]
+
+        const selectionStartColumn = this.selectionBuffer[0][1]
+        const selectionEndColumn = this.selectionBuffer[1][1]
+
+        if (selectionStartRow > selectionEndRow) {
+
+            const startLineData = this.textBuffer.value[selectionStartRow].splice(selectionStartColumn, Infinity)
+
+            for (let index = selectionStartRow; index > selectionEndRow; index--) {
+                this.deleteLine(index)
+                this.textBuffer.value.splice(index, 1)
+            }
+
+            this.textBuffer.value[selectionEndRow].splice(selectionEndColumn, this.textBuffer.value[selectionEndRow].length - selectionEndColumn)
+            this.textBuffer.value[selectionEndRow] = this.textBuffer.value[selectionEndRow].concat(startLineData)
+
+            this.setRowBufferPos(selectionEndRow)
+            this.getLine().update()
+            this.setColumnBufferPos(selectionEndColumn)
+
+            this.removeSelection()
+            return
+        }
+
+        if (selectionStartRow === selectionEndRow && (selectionStartColumn !== selectionEndColumn)) {
+
+            if (selectionStartColumn < selectionEndColumn) {
+                this.textBuffer.value[this.getRowCursorBufferPos()].splice(selectionStartColumn, selectionEndColumn - selectionStartColumn)
+                this.getLine().update()
+                this.setColumnBufferPos(selectionEndColumn)
+            } else {
+                this.textBuffer.value[this.getRowCursorBufferPos()].splice(selectionEndColumn, selectionStartColumn - selectionEndColumn)
+                this.getLine().update()
+                this.setColumnBufferPos(selectionStartColumn)
+            }
+
+            this.removeSelection()
+
+            return
+        }
+
+        if (selectionEndRow > selectionStartRow ) {
+            const startLineData = this.textBuffer.value[selectionEndRow].splice(selectionEndColumn, Infinity)
+
+            for (let index = selectionEndRow; index > selectionStartRow; index--) {
+                this.deleteLine(index)
+                this.textBuffer.value.splice(index, 1)
+            }
+
+            this.textBuffer.value[selectionStartRow].splice(selectionStartColumn, Infinity)
+            this.textBuffer.value[selectionStartRow] = this.textBuffer.value[selectionStartRow].concat(startLineData)
+
+            this.setRowBufferPos(selectionStartRow)
+            this.getLine().update()
+            this.setColumnBufferPos(selectionStartColumn)
+
+            this.removeSelection()
             return
         }
 
@@ -195,9 +201,6 @@ export class TextEditor {
             this.getLine().update()
             return
         }
-
-        if (this.textBuffer.value.length === 1 && this.getColumnCursorBufferPos() === 0)
-            return
 
 
         if (this.getColumnCursorBufferPos() < this.textBuffer.value[this.getRowCursorBufferPos()].length) {
@@ -229,8 +232,24 @@ export class TextEditor {
     }
 
     static insertChar(char) {
+
+        // if has selection, replace all the selected text with the typed char
+        // that is, delete the selected data (call handleBackSpace) and insert the char
+        if (
+            this.selectionBuffer[0][0] !== this.selectionBuffer[1][0] ||
+            this.selectionBuffer[0][1] !== this.selectionBuffer[1][1]
+        ) {
+            this.handleBackSpace()
+        }
+
         this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), 0, char)
         this.incrementColumnBufferPos()
+        this.removeSelection()
+    }
+
+    static removeSelection() {
+        this.selectionBuffer = [[], []]
+        window.getSelection().removeAllRanges()
     }
 
     static isCharValid(keyCode) {
@@ -246,16 +265,15 @@ export class TextEditor {
 
     static setColumnBufferPos(pos) {
         if (pos < 0)
-            return 0
+            this.cursorBuffer.value[1] = 0
 
         if (pos > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
             this.cursorBuffer.value[1] = this.textBuffer.value[this.getRowCursorBufferPos()].length
-            return
+        } else {
+            this.cursorBuffer.value[1] = pos
         }
 
-        this.cursorBuffer.value[1] = pos
-
-        const x = TextEditor.fontWidth * pos
+        const x = TextEditor.fontWidth * this.cursorBuffer.value[1]
         this.cursorElement.style.left = `${x}px`
     }
 
@@ -286,19 +304,20 @@ export class TextEditor {
     }
 
     static setRowBufferPos(pos) {
-        if (pos < 0)
-            return 0
+        this.getLine()?.removeSelected()
         
+        if (pos < 0)
+            this.cursorBuffer.value[0] = 0
+
         if (pos > this.textBuffer.value.length) {
             this.cursorBuffer.value[0] = this.textBuffer.value.length
-            return
+        } else {
+            this.cursorBuffer.value[0] = pos
         }
 
-        this.getLine().removeSelected()
-        this.cursorBuffer.value[0] = pos
         this.getLine().setSelected()
 
-        const y = TextEditor.LINE_HEIGHT * pos
+        const y = TextEditor.LINE_HEIGHT * this.cursorBuffer.value[0]
         this.cursorElement.style.top = `${y}px`
     }
 
@@ -307,10 +326,8 @@ export class TextEditor {
             return 0
 
 
-        this.getLine().removeSelected()
-
+        this.getLine()?.removeSelected()
         this.cursorBuffer.value[0]--
-
         this.getLine().setSelected()
 
         const y = this.cursorElement.offsetTop - TextEditor.LINE_HEIGHT
@@ -322,7 +339,7 @@ export class TextEditor {
             return
 
 
-        this.getLine().removeSelected()
+        this.getLine()?.removeSelected()
         this.cursorBuffer.value[0]++
         this.getLine().setSelected()
 
@@ -360,8 +377,9 @@ export class TextEditor {
     }
 
     static reset() {
-        TextEditor.textBuffer.value = [[]]
-        TextEditor.cursorBuffer.value = [0, 0]
-        TextEditor.lineBuffer = []
+        this.textBuffer.value = [[]]
+        this.cursorBuffer.value = [0, 0]
+        this.lineBuffer = []
+        this.removeSelection()
     }
 }
