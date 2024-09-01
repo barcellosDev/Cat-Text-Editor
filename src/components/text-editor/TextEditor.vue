@@ -63,7 +63,7 @@ window.onkeydown = ev => {
 }
 
 function setScreenCursorPos(ev) {
-    let selectedLine = ev.path.filter(elem => elem?.classList?.contains('line'))[0] ?? null
+    let selectedLine = getLineElementFrom(ev.target)
 
     if (!selectedLine) {
         selectedLine = editor.querySelector(`.line:last-child`)
@@ -75,6 +75,16 @@ function setScreenCursorPos(ev) {
     const offsetX = ev.offsetX > selectedLine.firstElementChild.offsetWidth ? selectedLine.firstElementChild.offsetWidth : Math.abs(ev.offsetX)
     const charPos = Math.round(offsetX / TextEditor.fontWidth)
     TextEditor.setColumnBufferPos(charPos)
+}
+
+function getLineElementFrom(element) {
+    if (element.classList?.contains('line'))
+        return element
+
+    if (!element.parentElement)
+        return null
+
+    return getLineElementFrom(element.parentElement)
 }
 
 </script>

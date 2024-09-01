@@ -4,7 +4,8 @@ import { app, protocol, BrowserWindow, Menu, dialog, ipcMain } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 import path from 'path'
-import { readdirSync, readFileSync } from 'fs'
+import { readFileSync } from 'fs'
+import { tree } from './utils'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
@@ -127,12 +128,10 @@ async function createWindow() {
     const result = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'multiSelections'] })
 
     if (!result.canceled) {
-            
-      const directories = result.filePaths.map(filePath => {
-        return readdirSync(filePath)
-      })
 
-      console.log(directories)
+      const directories = result.filePaths.map(filePath => {
+        return tree(filePath)
+      })
 
       win.webContents.send('receive-dir', directories)
     }

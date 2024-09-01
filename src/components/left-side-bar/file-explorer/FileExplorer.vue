@@ -1,5 +1,6 @@
 <script setup>
 
+import ListDirectories from './ListDirectories.vue'
 import Button from '@/components/ui/Button.vue'
 import { useDirectoriesStore } from '@/store/directories';
 
@@ -10,7 +11,7 @@ const dirStore = useDirectoriesStore()
 function openDir() {
     window.electron.onOpenDir(directories => {
         dirStore.directories = directories
-        
+
         console.log(dirStore)
     })
 }
@@ -23,15 +24,12 @@ function openDir() {
             <Button @click="openDir()">Open directory</Button>
         </div>
         <div v-else>
-            <div v-for="(files, index) in dirStore.directories" :key="index">
-
-                {{ files }}
-                
-            </div>
+            <ListDirectories v-for="(files, index) in dirStore.directories" :key="index"
+            :files="files"
+            >
+            </ListDirectories>
         </div>
     </div>
 </template>
 
-<style scoped>
-    
-</style>
+<style scoped></style>

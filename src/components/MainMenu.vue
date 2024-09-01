@@ -1,5 +1,5 @@
 <script setup>
-import FileExplorer from '@/components/left-side-bar/FileExplorer.vue'
+import FileExplorer from '@/components/left-side-bar/file-explorer/FileExplorer.vue'
 import Configuration from '@/components/left-side-bar/Configuration.vue'
 import { ref } from 'vue';
 
