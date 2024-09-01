@@ -1,33 +1,60 @@
 <script setup>
+import FileExplorer from '@/components/left-side-bar/FileExplorer.vue'
+import Configuration from '@/components/left-side-bar/Configuration.vue'
+import { ref } from 'vue';
 
+const fileExplorerSideBar = ref(false)
+const configSideBar = ref(false)
 
+function loadFileExplorer() {
+    fileExplorerSideBar.value = !fileExplorerSideBar.value
+    configSideBar.value = false
+}
+
+function loadConfigurations() {
+    configSideBar.value = !configSideBar.value
+    fileExplorerSideBar.value = false
+}
 
 </script>
 
 <template>
     <div id="main-menu" class="dark-light-mode-color">
-        <div>
-            <i class="white-menu-item fa-solid fa-file"></i>
+        <div id="menu-items">
+            <div>
+                <i @click="loadFileExplorer()" class="white-menu-item fa-solid fa-file"></i>
+            </div>
+            <div>
+                <i @click="loadConfigurations()" class="white-menu-item fa-solid fa-gear"></i>
+            </div>
         </div>
-        <div>
-            <i class="white-menu-item fa-solid fa-gear"></i>
-        </div>
-        <div>
-            <i class="white-menu-item fa-solid fa-moon"></i>
+
+        <div id="left-side-bar">
+            <FileExplorer v-if="fileExplorerSideBar"></FileExplorer>
+            <Configuration v-if="configSideBar"></Configuration>
         </div>
     </div>
 </template>
 
 <style scoped>
+
+    #left-side-bar {
+        color: whitesmoke;
+    }
+
     #main-menu {
+        display: flex;
+    }
+
+    #menu-items {
         text-align: center;
     }
 
-    #main-menu > div {
+    #menu-items > div {
         padding: 15px;
     }
 
-    #main-menu i {
+    #menu-items i {
         cursor: pointer;
         font-size: 30px;
     }

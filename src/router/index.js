@@ -7,12 +7,10 @@ const router = createRouter({
     routes: [
         {
             path: '/',
-            name: 'home',
             component: HomePage
         },
         {
             path: '/editor',
-            name: 'TextEditor',
             component: TextEditor
         }
     ]

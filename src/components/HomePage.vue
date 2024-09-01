@@ -5,8 +5,11 @@ import { useFilesStore } from '@/store/files';
 const store = useFilesStore()
 
 function openFile() {
-    window.electron.onOpenFile(fileData => {
-        store.pushFile(fileData)
+    window.electron.onOpenFile(files => {
+        files.forEach(fileData => {
+            store.pushFile(fileData)
+        })
+        
         router.push('editor')
     })
 }

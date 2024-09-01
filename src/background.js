@@ -4,7 +4,7 @@ import { app, protocol, BrowserWindow, Menu, dialog, ipcMain } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 import path from 'path'
-import { readFile } from 'fs';
+import { readdirSync, readFileSync } from 'fs'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
@@ -106,17 +106,36 @@ async function createWindow() {
     const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
 
     if (!result.canceled) {
-      const filePath = result.filePaths[0]
+      const files = []
 
-      readFile(filePath, (err, data) => {
-        if (err) throw err
+      result.filePaths.forEach(filePath => {
+        const data = readFileSync(filePath, { encoding: 'utf-8' })
 
-        win.webContents.send('receive-file', {
-          text: data.toString('utf-8'),
+        files.push({
+          text: data,
           name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
           path: filePath
         })
+
       })
+
+      win.webContents.send('receive-file', files)
     }
+  })
+
+  ipcMain.on('read-dir', async () => {
+    const result = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'multiSelections'] })
+
+    if (!result.canceled) {
+            
+      const directories = result.filePaths.map(filePath => {
+        return readdirSync(filePath)
+      })
+
+      console.log(directories)
+
+      win.webContents.send('receive-dir', directories)
+    }
+
   })
 }
