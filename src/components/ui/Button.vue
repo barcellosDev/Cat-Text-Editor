@@ -1,4 +1,5 @@
 <script setup>
+import { defineProps } from 'vue';
 
 const props = defineProps({
     secondary: {
@@ -20,8 +21,11 @@ const props = defineProps({
 
 .button {
     border-radius: 5px;
+    width: 100%;
     max-width: 300px;
     cursor: pointer;
+    padding: 5px;
+    text-align: center;
 }
 
 .default-button {
@@ -29,10 +33,6 @@ const props = defineProps({
 }
 .default-button:hover {
     background-color: #004a83;
-}
-
-.secondary-button {
-
 }
 
 </style>

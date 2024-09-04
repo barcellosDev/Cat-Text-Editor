@@ -29,6 +29,8 @@ onMounted(() => {
     }
     
     editor.onmousedown = (ev) => {
+        
+
         setScreenCursorPos(ev)
 
         TextEditor.selectionBuffer[0] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]

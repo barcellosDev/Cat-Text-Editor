@@ -29,7 +29,7 @@ function loadConfigurations() {
             </div>
         </div>
 
-        <div id="left-side-bar">
+        <div v-if="fileExplorerSideBar || configSideBar" id="left-side-bar">
             <FileExplorer v-if="fileExplorerSideBar"></FileExplorer>
             <Configuration v-if="configSideBar"></Configuration>
         </div>
@@ -37,33 +37,36 @@ function loadConfigurations() {
 </template>
 
 <style scoped>
+#left-side-bar {
+    color: whitesmoke;
+    overflow-y: auto;
+    min-width: max-content;
+    padding: 10px;
+    border-left: 1px solid #5757577e;
+}
 
-    #left-side-bar {
-        color: whitesmoke;
-    }
+#main-menu {
+    display: flex;
+}
 
-    #main-menu {
-        display: flex;
-    }
+#menu-items {
+    text-align: center;
+}
 
-    #menu-items {
-        text-align: center;
-    }
+#menu-items>div {
+    padding: 15px;
+}
 
-    #menu-items > div {
-        padding: 15px;
-    }
+#menu-items i {
+    cursor: pointer;
+    font-size: 30px;
+}
 
-    #menu-items i {
-        cursor: pointer;
-        font-size: 30px;
-    }
+.white-menu-item {
+    color: white;
+}
 
-    .white-menu-item {
-        color: white;
-    }
-
-    .selected-menu-border {
-        border-left: 2px solid whitesmoke;
-    }
+.selected-menu-border {
+    border-left: 2px solid whitesmoke;
+}
 </style>

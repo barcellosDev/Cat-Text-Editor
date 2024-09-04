@@ -103,25 +103,34 @@ async function createWindow() {
     ]
   }]))
 
-  ipcMain.on('read-file', async () => {
-    const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
+  ipcMain.on('read-file', async (event, filePaths) => {
+    
+    if (filePaths.length === 0) {
+      const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
+  
+      if (!result.canceled) {
+        filePaths = result.filePaths
+      }
+    }
 
-    if (!result.canceled) {
-      const files = []
+    console.log(filePaths)
 
-      result.filePaths.forEach(filePath => {
-        const data = readFileSync(filePath, { encoding: 'utf-8' })
 
-        files.push({
-          text: data,
-          name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
-          path: filePath
-        })
+    const files = []
 
+    filePaths.forEach(filePath => {
+      const data = readFileSync(filePath, { encoding: 'utf-8' })
+
+      files.push({
+        text: data,
+        name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
+        path: filePath
       })
 
-      win.webContents.send('receive-file', files)
-    }
+    })
+
+    win.webContents.send('receive-file', files)
+
   })
 
   ipcMain.on('read-dir', async () => {
