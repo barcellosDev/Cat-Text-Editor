@@ -14,15 +14,6 @@ function closeTab(tabIndex) {
     if (store.files.length === 0) {
         router.push('/')
     }
-
-    if (store.files[tabIndex+1]) {
-        store.setFileSelected(tabIndex+1)
-    }
-
-    if (store.files[tabIndex-1]) {
-        store.setFileSelected(tabIndex-1)
-    }
-
 }
 
 </script>
@@ -58,6 +49,7 @@ function closeTab(tabIndex) {
 #group-tabs {
     display: flex;
     background-color: #31363F;
+    overflow-x: auto;
 }
 
 .tab {

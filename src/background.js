@@ -4,8 +4,8 @@ import { app, protocol, BrowserWindow, Menu, dialog, ipcMain } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 import path from 'path'
-import { readFileSync } from 'fs'
-import { tree } from './utils'
+import { readFileSync, statSync } from 'fs'
+import * as utils from './utils'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
@@ -97,7 +97,7 @@ async function createWindow() {
       {
         label: 'Home',
         click() {
-          win.webContents.send("change-route", "home")
+          win.webContents.send("change-route", "/")
         }
       }
     ]
@@ -113,19 +113,14 @@ async function createWindow() {
       }
     }
 
-    console.log(filePaths)
-
-
-    const files = []
-
-    filePaths.forEach(filePath => {
+    const files = filePaths.map(filePath => {
       const data = readFileSync(filePath, { encoding: 'utf-8' })
 
-      files.push({
+      return {
         text: data,
         name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
         path: filePath
-      })
+      }
 
     })
 
@@ -138,8 +133,17 @@ async function createWindow() {
 
     if (!result.canceled) {
 
-      const directories = result.filePaths.map(filePath => {
-        return tree(filePath)
+      const directories = result.filePaths.map(dirPath => {
+        const fileStats = statSync(dirPath)
+
+        return [{
+          name: path.basename(dirPath),
+          type: 'directory',
+          size: fileStats.size,
+          path: dirPath,
+          children: utils.tree(dirPath)
+        }]
+
       })
 
       win.webContents.send('receive-dir', directories)

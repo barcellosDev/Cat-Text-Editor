@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useFilesStore = defineStore('files', () => {
-  const files = []
+  const files = ref([])
   const selectedFileIndex = ref(null)
 
   function pushFile(fileObj) {
@@ -16,32 +16,39 @@ export const useFilesStore = defineStore('files', () => {
 
     removeAnySelected()
 
-    files.push(Object.assign(fileObj, { selected: true }))
-    selectedFileIndex.value = files.length - 1
+    files.value.push(Object.assign(fileObj, { selected: true }))
+    selectedFileIndex.value = files.value.length - 1
   }
 
   function removeFileRef(index) {
-    files.splice(index, 1)
-    selectedFileIndex.value = files.length - 1
+    files.value.splice(index, 1)
+
+    if (typeof files.value[index + 1] === 'object') {
+      setFileSelected(index + 1)
+    }
+
+    if (typeof files.value[index - 1] === 'object') {
+      setFileSelected(index - 1)
+    }
   }
 
   function removeAnySelected() {
-    files
+    files.value
       .filter(fileObj => fileObj?.selected)
       .forEach(file => delete file.selected)
   }
 
   function getFile(index) {
-    return files[index] ?? null
+    return files.value[index] ?? null
   }
 
   function getSelectedFile() {
-    return files.filter(fileObj => fileObj?.selected)[0] ?? null
+    return files.value[selectedFileIndex.value]
   }
 
   function setFileSelected(index) {
     removeAnySelected()
-    
+
     const file = getFile(index)
     selectedFileIndex.value = index
 

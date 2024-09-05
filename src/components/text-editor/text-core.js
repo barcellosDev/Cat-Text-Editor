@@ -367,13 +367,24 @@ export class TextEditor {
     }
 
     static parseText(text) {
+        text = text.replace(/\r\n/g, '\n')
         const lines = text.split('\n')
 
         lines.forEach((line, i) => {
-            lines[i] = line.replace('\r', '').split('')
+            lines[i] = line.split('')
         })
 
         return lines
+    }
+
+    static renderPureText() {
+        let text = ''
+
+        this.textBuffer.value.forEach(line => {
+            text += `${line.join('')}\n`
+        })
+
+        return text
     }
 
     static reset() {

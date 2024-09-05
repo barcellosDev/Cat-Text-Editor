@@ -21,7 +21,6 @@ const props = defineProps({
 
 .button {
     border-radius: 5px;
-    width: 100%;
     max-width: 300px;
     cursor: pointer;
     padding: 5px;

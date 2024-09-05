@@ -37,7 +37,12 @@ function toggleShowChildren() {
     showChildren.value = !showChildren.value
 }
 
-function openFile(filePath) {
+function openFile(file) {
+    if (file.type === 'directory')
+        return
+    
+    const filePath = file.path
+
     window.electron.onOpenFile(files => {
         files.forEach(fileData => {
             store.pushFile(fileData)
@@ -52,7 +57,7 @@ function openFile(filePath) {
 <template>
     <div class="file-item-container">
 
-        <div :style="`${childSpacing} ${fileSpacing}`" class="item" @click="toggleShowChildren(); openFile(file.path)">
+        <div :style="`${childSpacing} ${fileSpacing}`" class="item" @click="toggleShowChildren(); openFile(file)">
             <i v-if="file.children" class="fa-solid " :class="toggleChildrenIcon">
             </i>
 
@@ -61,7 +66,7 @@ function openFile(filePath) {
             <span>{{ file.name }}</span>
         </div>
 
-        <div v-show="showChildren" v-if="file.children">
+        <div v-if="file.children && showChildren">
             <Item v-for="(child, index) in file.children" :key="index" :file="child"
                 :spacing="props.spacing + spacingOffset">
             </Item>

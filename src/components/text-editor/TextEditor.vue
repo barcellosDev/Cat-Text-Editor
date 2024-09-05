@@ -1,6 +1,6 @@
 <script setup>
 
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import EditorTabs from '../EditorTabs.vue';
 import { TextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
@@ -27,10 +27,8 @@ onMounted(() => {
 
         editor.onmousemove = null
     }
-    
-    editor.onmousedown = (ev) => {
-        
 
+    editor.onmousedown = (ev) => {
         setScreenCursorPos(ev)
 
         TextEditor.selectionBuffer[0] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
@@ -41,28 +39,34 @@ onMounted(() => {
         }
     }
 
-    if (selectedFile) { // has loaded file
+    if (selectedFile) { // has loaded file        
         TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
         TextEditor.renderText()
     }
-    
+
+    window.onkeydown = ev => {
+        TextEditor.handleKeyBoard(ev)
+
+        clearTimeout(timeoutHandlerToSaveFileOnMemory)
+        timeoutHandlerToSaveFileOnMemory = setTimeout(() => {
+            store.files[store.selectedFileIndex].text = TextEditor.renderPureText()
+        }, 100)
+
+        textEditorMainContainer
+            .querySelectorAll('#text-editor-lines, #text-editor-content')
+            .forEach(el => el.style.height = `${textEditorMainContainer.scrollHeight}px`)
+    }
+
     textEditorMainContainer = document.getElementById('text-editor-main-container')
     textEditorMainContainer.style.height = `calc(100% - ${textEditorMainContainer.offsetTop}px)`
 })
 
-
-window.onkeydown = ev => {
-    TextEditor.handleKeyBoard(ev)
-
-    clearTimeout(timeoutHandlerToSaveFileOnMemory)
-    timeoutHandlerToSaveFileOnMemory = setTimeout(() => {
-        store.files[store.selectedFileIndex].text = editor.innerText
-    }, 100)
-
-    textEditorMainContainer
-        .querySelectorAll('#text-editor-lines, #text-editor-content')
-        .forEach(el => el.style.height = `${textEditorMainContainer.scrollHeight}px`)
-}
+onUnmounted(() => {
+    window.onkeydown = null
+    editor.onmousedown = null
+    editor.onmouseup = null
+    editor.onmousemove = null
+})
 
 function setScreenCursorPos(ev) {
     let selectedLine = getLineElementFrom(ev.target)
@@ -97,7 +101,7 @@ function getLineElementFrom(element) {
     <div id="text-editor-main-container">
         <div id="text-editor-lines">
             <div v-for="(line, index) in TextEditor.textBuffer.value" :key="index" class="line-count"
-                :class="{ 'line-count-selected': index === TextEditor.cursorBuffer.value[0]}">
+                :class="{ 'line-count-selected': index === TextEditor.cursorBuffer.value[0] }">
                 {{ index + 1 }}
             </div>
         </div>
@@ -152,11 +156,9 @@ function getLineElementFrom(element) {
     background-color: #cacaca;
     position: absolute;
 }
-
 </style>
 
 <style>
-
 .line-count,
 .line {
     position: relative;
