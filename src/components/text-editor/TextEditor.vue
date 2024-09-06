@@ -20,22 +20,32 @@ onMounted(() => {
     TextEditor.setEditorElement(editor)
     TextEditor.setCursorElement(cursor)
 
-    editor.onmouseup = (ev) => {
-        setScreenCursorPos(ev)
-
-        TextEditor.selectionBuffer[1] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
-
+    editor.onmouseup = () => {
         editor.onmousemove = null
+
+        // const selection = window.getSelection()
+        // if (selection.focusNode) {
+        //     const newOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth)
+    
+        //     setScreenXToBuffer(newOffsetX)
+        // }
     }
 
     editor.onmousedown = (ev) => {
-        setScreenCursorPos(ev)
+        setScreenCursorPositionToBuffer(ev)
 
         TextEditor.selectionBuffer[0] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
 
         editor.onmousemove = (ev) => {
-            setScreenCursorPos(ev)
+            setScreenCursorPositionToBuffer(ev)
+
+            const selection = window.getSelection()
+            const newOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth)
+
+            setScreenXToBuffer(newOffsetX)
+
             TextEditor.selectionBuffer[1] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
+
         }
     }
 
@@ -63,23 +73,27 @@ onMounted(() => {
 
 onUnmounted(() => {
     window.onkeydown = null
-    editor.onmousedown = null
-    editor.onmouseup = null
-    editor.onmousemove = null
 })
 
-function setScreenCursorPos(ev) {
+function setScreenCursorPositionToBuffer(ev) {
     let selectedLine = getLineElementFrom(ev.target)
 
     if (!selectedLine) {
         selectedLine = editor.querySelector(`.line:last-child`)
     }
 
-    const linePos = Math.floor(selectedLine.offsetTop / TextEditor.LINE_HEIGHT)
-    TextEditor.setRowBufferPos(linePos)
+    setScreenYToBuffer(selectedLine)
+    setScreenXToBuffer(ev.offsetX)
+}
 
-    const offsetX = ev.offsetX > selectedLine.firstElementChild.offsetWidth ? selectedLine.firstElementChild.offsetWidth : Math.abs(ev.offsetX)
-    const charPos = Math.round(offsetX / TextEditor.fontWidth)
+function setScreenYToBuffer(line) {
+    const linePos = Math.floor(line.offsetTop / TextEditor.LINE_HEIGHT)
+    TextEditor.setRowBufferPos(linePos)
+}
+
+function setScreenXToBuffer(offsetX) {
+    const charPos = Math.round(Math.abs(offsetX) / TextEditor.fontWidth)
+
     TextEditor.setColumnBufferPos(charPos)
 }
 

@@ -72,12 +72,12 @@ export default function highlight(text) {
     const tokens = Array.from(jsTokens(text))
 
     const parsed = tokens.map((token, index, originalArray) => {
+        
+        let color = colorSchemeByToken[token.type]
 
         if (token.type === 'WhiteSpace') {
-            return token.value.replaceAll(' ', `&nbsp;`)
+            token.value = token.value.replace(' ', `&nbsp;`)
         }
-
-        let color = colorSchemeByToken[token.type]
 
         if (token.type === 'IdentifierName') {
             const previousToken = getPreviousIdentifierNameTokenValue(originalArray, index)

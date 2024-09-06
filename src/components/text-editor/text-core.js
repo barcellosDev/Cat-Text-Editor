@@ -3,7 +3,9 @@ import { LineModel } from "./line-model"
 
 export class TextEditor {
     static editorElement = null
+
     static LINE_HEIGHT = 23
+    static TAB_VALUE = '  '
 
     static cursorElement = HTMLElement.prototype
 
@@ -264,14 +266,14 @@ export class TextEditor {
     }
 
     static setColumnBufferPos(pos) {
-        if (pos < 0)
-            this.cursorBuffer.value[1] = 0
-
         if (pos > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
             this.cursorBuffer.value[1] = this.textBuffer.value[this.getRowCursorBufferPos()].length
         } else {
             this.cursorBuffer.value[1] = pos
         }
+
+        if (pos < 0)
+            this.cursorBuffer.value[1] = 0
 
         const x = TextEditor.fontWidth * this.cursorBuffer.value[1]
         this.cursorElement.style.left = `${x}px`
@@ -367,7 +369,7 @@ export class TextEditor {
     }
 
     static parseText(text) {
-        text = text.replace(/\r\n/g, '\n')
+        text = text.replace(/\r\n/g, '\n').replace(/\t/g, this.TAB_VALUE)
         const lines = text.split('\n')
 
         lines.forEach((line, i) => {
