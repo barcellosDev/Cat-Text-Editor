@@ -4,7 +4,7 @@ import { LineModel } from "./line-model"
 export class TextEditor {
     static editorElement = null
 
-    static LINE_HEIGHT = 23
+    static LINE_HEIGHT = 19
     static TAB_VALUE = '  '
 
     static cursorElement = HTMLElement.prototype

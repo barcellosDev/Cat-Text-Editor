@@ -22,18 +22,11 @@ onMounted(() => {
 
     editor.onmouseup = () => {
         editor.onmousemove = null
-
-        // const selection = window.getSelection()
-        // if (selection.focusNode) {
-        //     const newOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth)
-    
-        //     setScreenXToBuffer(newOffsetX)
-        // }
+        TextEditor.selectionBuffer[1] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
     }
 
     editor.onmousedown = (ev) => {
         setScreenCursorPositionToBuffer(ev)
-
         TextEditor.selectionBuffer[0] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
 
         editor.onmousemove = (ev) => {
@@ -45,7 +38,6 @@ onMounted(() => {
             setScreenXToBuffer(newOffsetX)
 
             TextEditor.selectionBuffer[1] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
-
         }
     }
 
@@ -165,8 +157,7 @@ function getLineElementFrom(element) {
 
 #cursor {
     width: 2px;
-    height: 23px;
-    /* HAS TO BE ON SAME HEIGHT OF THE LINE */
+    height: 19px; /* HAS TO BE ON SAME HEIGHT OF THE LINE */
     background-color: #cacaca;
     position: absolute;
 }
@@ -180,7 +171,7 @@ function getLineElementFrom(element) {
 
 .line-count {
     color: grey;
-    border: 2px solid transparent;
+    outline: 1px solid transparent;
 }
 
 .line-count-selected {
@@ -188,8 +179,6 @@ function getLineElementFrom(element) {
 }
 
 .line {
-    border: 2px solid transparent;
-    border-left: 0.5px solid transparent;
     white-space: pre;
 }
 
@@ -197,14 +186,7 @@ function getLineElementFrom(element) {
     margin-right: 10px;
 }
 
-.line-selected .root {
-    border-top: 2px solid #404040;
-    border-bottom: 2px solid #404040;
-}
-
 .line-selected {
-    border-top: 2px solid #404040;
-    border-bottom: 2px solid #404040;
-    border-left: 0.5px solid #404040;
+    outline: 1px solid #404040;
 }
 </style>
