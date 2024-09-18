@@ -11,12 +11,13 @@ export const useFilesStore = defineStore('files', () => {
       name: 'etc.php',
       path: 'C:\\xampp...',
       text: (actual file data)
+      changed: false|true
      }
     */
 
     removeAnySelected()
 
-    files.value.push(Object.assign(fileObj, { selected: true }))
+    files.value.push(Object.assign(fileObj, { selected: true, changed: false }))
     selectedFileIndex.value = files.value.length - 1
   }
 

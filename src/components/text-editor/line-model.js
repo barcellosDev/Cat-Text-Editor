@@ -1,5 +1,6 @@
 import highlight from "./colorize-text"
 import { TextEditor } from "./text-core"
+import { useFilesStore } from '@/store/files';
 
 export class LineModel {
     element
@@ -25,6 +26,10 @@ export class LineModel {
 
         this.element.firstElementChild.remove()
         this.element.appendChild(this.buildRootSpan(row))
+
+        const store = useFilesStore()
+
+        store.files[store.selectedFileIndex].changed = true
     }
 
     buildLine(row, index) {

@@ -1,5 +1,6 @@
 import { ref } from "vue"
 import { LineModel } from "./line-model"
+import { useFilesStore } from '@/store/files';
 
 export class TextEditor {
     static editorElement = null
@@ -25,9 +26,7 @@ export class TextEditor {
     ])
 
     static cursorBuffer = ref([0, 0])
-
     static lineBuffer = []
-
     static selectionBuffer = [[], []]
 
     static notPrint = {
@@ -63,6 +62,27 @@ export class TextEditor {
         }
     }
 
+    static controlActions(char) {
+        if (char === 's') {
+            const store = useFilesStore()
+
+            store.files[store.selectedFileIndex].text = TextEditor.renderPureText()
+
+            const fileData = JSON.stringify(store.getSelectedFile())
+
+            window.electron.onSaveFile(fileData, (file) => {
+                console.log(file)
+                if (file) {
+                    store.files[store.selectedFileIndex] = JSON.parse(file)
+                }
+            })
+        }
+
+        if (char === 'c') {
+            //
+        }
+    }
+
     static setEditorElement(editor) {
         this.editorElement = editor
     }
@@ -80,21 +100,23 @@ export class TextEditor {
         if (!this.isCharValid(keyCode))
             return
 
-
         if (typeof this.notPrint[keyCode] === "function") {
             this.notPrint[keyCode]()
+            return
+        }
+
+        if (ev.ctrlKey) {
+            this.controlActions(char)
             return
         }
 
         if (keyCode === 9) { // tab
             char = ' '
 
-            for (let counter = 1; counter <= 2; counter++) {
+            for (let count = 1; count <= 2; count++)
                 this.insertChar(char)
-            }
-
-            this.getLine().update()
-
+            
+            this.getLine().update()                
             return
         }
 

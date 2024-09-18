@@ -8,7 +8,12 @@ function selectTab(tabIndex) {
     store.setFileSelected(tabIndex)
 }
 
-function closeTab(tabIndex) {
+function closeTab(tabIndex, isChanged) {
+    if (isChanged) {
+        alert('Deseja descartar alterações?')
+        return
+    }
+
     store.removeFileRef(tabIndex)
 
     if (store.files.length === 0) {
@@ -29,7 +34,7 @@ function closeTab(tabIndex) {
                 @click="selectTab(index)"
             >
                 <div>{{ file.name }}</div>
-                <i @click="closeTab(index)" class="fa-solid fa-x tab-close-icon"></i>
+                <i @click="closeTab(index, file.changed)" class="fa-solid tab-close-icon" :class="{'fa-x': !file.changed, 'fa-circle': file.changed}"></i>
             </div>
         </div>
 

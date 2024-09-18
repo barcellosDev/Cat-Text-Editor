@@ -5,6 +5,7 @@ import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 import path from 'path'
 import { readFileSync, statSync } from 'fs'
+import { writeFile } from 'fs/promises'
 import * as utils from './utils'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
@@ -104,10 +105,10 @@ async function createWindow() {
   }]))
 
   ipcMain.on('read-file', async (event, filePaths) => {
-    
+
     if (filePaths.length === 0) {
       const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
-  
+
       if (!result.canceled) {
         filePaths = result.filePaths
       }
@@ -149,5 +150,32 @@ async function createWindow() {
       win.webContents.send('receive-dir', directories)
     }
 
+  })
+
+  ipcMain.on('save-file', async (event, fileData) => {
+    const fileObj = JSON.parse(fileData)
+
+    if (!fileObj.path) { // new file being created. Open dialog
+      const result = await dialog.showSaveDialog(win)
+
+      if (result.canceled) {
+        win.webContents.send('saved-file', false)
+        return
+      }
+
+      fileObj.path = result.filePath
+    }
+
+    try {
+      await writeFile(fileObj.path, fileObj.text, { flag: 'w', encoding: 'utf-8' })
+
+      fileObj.name = path.basename(fileObj.path)
+      fileObj.changed = false
+      
+      win.webContents.send('saved-file', JSON.stringify(fileObj))
+    } catch (error) {
+      win.webContents.send('saved-file', error)
+    }
+    
   })
 }

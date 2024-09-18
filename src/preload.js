@@ -10,6 +10,11 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.send('read-file', filePaths)
     },
 
+    onSaveFile: (fileData, callback) => {
+        ipcRenderer.once('saved-file', (ev, fileObj) => callback(fileObj))
+        ipcRenderer.send('save-file', fileData)
+    },
+
     onOpenDir: (callback) => {
         ipcRenderer.once('receive-dir', (ev, directory) => callback(directory))
         ipcRenderer.send('read-dir')
