@@ -71,15 +71,24 @@ export class TextEditor {
             const fileData = JSON.stringify(store.getSelectedFile())
 
             window.electron.onSaveFile(fileData, (file) => {
-                console.log(file)
                 if (file) {
                     store.files[store.selectedFileIndex] = JSON.parse(file)
                 }
             })
         }
 
-        if (char === 'c') {
-            //
+        if (char === 'c' || char === 'x') {
+            const selectedData = window.getSelection().toString()
+            navigator.clipboard.writeText(selectedData)
+
+            if (char === 'x' && selectedData.length > 0)
+                this.handleBackSpace()
+        }
+
+        if (char === 'v') {
+            navigator.clipboard.readText().then(text => {
+                this.insertText(text)
+            })
         }
     }
 
@@ -114,7 +123,7 @@ export class TextEditor {
             char = ' '
 
             for (let count = 1; count <= 2; count++)
-                this.insertChar(char)
+                this.insertText(char)
             
             this.getLine().update()                
             return
@@ -124,7 +133,7 @@ export class TextEditor {
             char = ' '
         }
 
-        this.insertChar(char)
+        this.insertText(char)
         this.getLine().update()
     }
 
@@ -255,7 +264,7 @@ export class TextEditor {
         this.setColumnBufferPos(0)
     }
 
-    static insertChar(char) {
+    static insertText(text) {
 
         // if has selection, replace all the selected text with the typed char
         // that is, delete the selected data (call handleBackSpace) and insert the char
@@ -266,8 +275,20 @@ export class TextEditor {
             this.handleBackSpace()
         }
 
-        this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), 0, char)
-        this.incrementColumnBufferPos()
+        const newBuffer = this.parseText(text)
+
+        newBuffer.forEach((line, index) => {
+
+            this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), 0, ...line)
+            this.setColumnBufferPos(this.getColumnCursorBufferPos() + line.length)
+
+            if (newBuffer[index + 1])
+                this.insertLine()
+            else
+                this.getLine().update()
+
+        })
+
         this.removeSelection()
     }
 

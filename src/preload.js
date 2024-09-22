@@ -2,12 +2,19 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electron', {
     onChangeRoute: (callback) => {
-        ipcRenderer.on('change-route', (event, path) => callback(path))
+        ipcRenderer.once('change-route', (ev, path) => callback(path))
+    },
+
+    onNewFile: (callback) => {
+        ipcRenderer.on('new-file', () => callback())
     },
 
     onOpenFile: (callback, filePaths = []) => {
-        ipcRenderer.once('receive-file', (ev, fileData) => callback(fileData))
         ipcRenderer.send('read-file', filePaths)
+    },
+    
+    onReceiveFile: (callback) => {
+        ipcRenderer.on('receive-file', (ev, fileData) => callback(fileData))
     },
 
     onSaveFile: (fileData, callback) => {

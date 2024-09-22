@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 export const useFilesStore = defineStore('files', () => {
   const files = ref([])
-  const selectedFileIndex = ref(null)
+  const selectedFileIndex = ref(0)
 
   function pushFile(fileObj) {
     /*
@@ -15,28 +15,28 @@ export const useFilesStore = defineStore('files', () => {
      }
     */
 
-    removeAnySelected()
-
-    files.value.push(Object.assign(fileObj, { selected: true, changed: false }))
+    files.value.push(Object.assign(fileObj, { changed: false }))
     selectedFileIndex.value = files.value.length - 1
+  }
+
+  function newFile() {
+    pushFile({
+      name: `Untitled ${files.value.filter(file => !file.path).length + 1}`,
+      text: ''
+    })
   }
 
   function removeFileRef(index) {
     files.value.splice(index, 1)
-
-    if (typeof files.value[index + 1] === 'object') {
+    
+    if (files.value[index + 1]) {
       setFileSelected(index + 1)
     }
-
-    if (typeof files.value[index - 1] === 'object') {
+    
+    if (files.value[index - 1]) {
       setFileSelected(index - 1)
     }
-  }
 
-  function removeAnySelected() {
-    files.value
-      .filter(fileObj => fileObj?.selected)
-      .forEach(file => delete file.selected)
   }
 
   function getFile(index) {
@@ -48,13 +48,7 @@ export const useFilesStore = defineStore('files', () => {
   }
 
   function setFileSelected(index) {
-    removeAnySelected()
-
-    const file = getFile(index)
     selectedFileIndex.value = index
-
-    if (file)
-      file.selected = true
   }
 
   return {
@@ -64,6 +58,7 @@ export const useFilesStore = defineStore('files', () => {
     getFile,
     setFileSelected,
     getSelectedFile,
-    removeFileRef
+    removeFileRef,
+    newFile
   }
 })

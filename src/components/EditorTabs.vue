@@ -10,8 +10,7 @@ function selectTab(tabIndex) {
 
 function closeTab(tabIndex, isChanged) {
     if (isChanged) {
-        alert('Deseja descartar alterações?')
-        return
+        alert('Descartar alterações?')
     }
 
     store.removeFileRef(tabIndex)
@@ -30,11 +29,11 @@ function closeTab(tabIndex, isChanged) {
             <div v-for="(file, index) in store.files" 
                 :key="index" 
                 class="tab" 
-                :class="{'tab-selected': file.selected}"
+                :class="{'tab-selected': index === store.selectedFileIndex}"
                 @click="selectTab(index)"
             >
                 <div>{{ file.name }}</div>
-                <i @click="closeTab(index, file.changed)" class="fa-solid tab-close-icon" :class="{'fa-x': !file.changed, 'fa-circle': file.changed}"></i>
+                <i @click.stop="closeTab(index, file.changed)" class="fa-solid tab-close-icon" :class="{'fa-x': !file.changed, 'fa-circle': file.changed}"></i>
             </div>
         </div>
 

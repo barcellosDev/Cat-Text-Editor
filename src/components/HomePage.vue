@@ -9,17 +9,9 @@ function openFile() {
         files.forEach(fileData => {
             store.pushFile(fileData)
         })
-        
+
         router.push('editor')
     })
-}
-
-function newFile() {
-    store.pushFile({
-        name: 'Untitled 1',
-        text: ''
-    })
-    router.push('editor')
 }
 
 </script>
@@ -33,7 +25,7 @@ function newFile() {
             </div>
             <div id="links">
                 <p>
-                    <a @click="newFile()">New file</a>
+                    <a @click="store.newFile(); router.push('editor')">New file</a>
                 </p>
                 <p><a @click="openFile()">Open existing file</a></p>
             </div>

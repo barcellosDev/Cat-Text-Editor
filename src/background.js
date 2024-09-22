@@ -92,65 +92,39 @@ async function createWindow() {
     win.loadURL('app://./index.html')
   }
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate([{
-    label: 'View',
-    submenu: [
-      {
-        label: 'Home',
-        click() {
-          win.webContents.send("change-route", "/")
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New File',
+          click() {
+            win.webContents.send("new-file")
+          }
+        },
+        {
+          label: 'Open File',
+          click() {
+            ipcReadFile()
+          }
         }
-      }
-    ]
-  }]))
-
-  ipcMain.on('read-file', async (event, filePaths) => {
-
-    if (filePaths.length === 0) {
-      const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
-
-      if (!result.canceled) {
-        filePaths = result.filePaths
-      }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Home',
+          click() {
+            win.webContents.send("change-route", "/")
+          }
+        }
+      ]
     }
+  ]))
 
-    const files = filePaths.map(filePath => {
-      const data = readFileSync(filePath, { encoding: 'utf-8' })
-
-      return {
-        text: data,
-        name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
-        path: filePath
-      }
-
-    })
-
-    win.webContents.send('receive-file', files)
-
-  })
-
-  ipcMain.on('read-dir', async () => {
-    const result = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'multiSelections'] })
-
-    if (!result.canceled) {
-
-      const directories = result.filePaths.map(dirPath => {
-        const fileStats = statSync(dirPath)
-
-        return [{
-          name: path.basename(dirPath),
-          type: 'directory',
-          size: fileStats.size,
-          path: dirPath,
-          children: utils.tree(dirPath)
-        }]
-
-      })
-
-      win.webContents.send('receive-dir', directories)
-    }
-
-  })
+  ipcMain.on('read-file', async (event, filePaths) => ipcReadFile(filePaths))
+  ipcMain.on('read-dir', async () => ipcReadDir())
 
   ipcMain.on('save-file', async (event, fileData) => {
     const fileObj = JSON.parse(fileData)
@@ -171,11 +145,60 @@ async function createWindow() {
 
       fileObj.name = path.basename(fileObj.path)
       fileObj.changed = false
-      
+
       win.webContents.send('saved-file', JSON.stringify(fileObj))
     } catch (error) {
       win.webContents.send('saved-file', error)
     }
-    
+
   })
+
+
+
+
+  async function ipcReadDir() {
+    const result = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'multiSelections'] })
+
+    if (!result.canceled) {
+
+      const directories = result.filePaths.map(dirPath => {
+        const fileStats = statSync(dirPath)
+
+        return [{
+          name: path.basename(dirPath),
+          type: 'directory',
+          size: fileStats.size,
+          path: dirPath,
+          children: utils.tree(dirPath)
+        }]
+
+      })
+
+      win.webContents.send('receive-dir', directories)
+    }
+  }
+
+  async function ipcReadFile(filePaths = []) {
+    if (filePaths.length === 0) {
+      const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
+
+      if (result.canceled)
+        return
+
+      filePaths = result.filePaths
+    }
+
+    const files = filePaths.map(filePath => {
+      const data = readFileSync(filePath, { encoding: 'utf-8' })
+
+      return {
+        text: data,
+        name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
+        path: filePath
+      }
+
+    })
+
+    win.webContents.send('receive-file', files)
+  }
 }

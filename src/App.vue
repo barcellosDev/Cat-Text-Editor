@@ -11,7 +11,20 @@ onMounted(() => {
   window.electron.onChangeRoute(path => {
     router.push(path)
   })
-  
+
+  window.electron.onNewFile(() => {
+    store.newFile()
+    router.push('editor')
+  })
+
+  window.electron.onReceiveFile(files => {
+    files.forEach(fileData => {
+      store.pushFile(fileData)
+    })
+
+    router.push('editor')
+  })
+
   window.onresize = () => {
     const mainMenuWidth = document.getElementById('main-menu').offsetWidth
     document.getElementById('main-content').style.width = `calc(100% - ${mainMenuWidth}px)`
@@ -30,7 +43,8 @@ onMounted(() => {
 </template>
 
 <style>
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -47,6 +61,7 @@ html, body {
 .dark-mode-color {
   background-color: #26282B;
 }
+
 .dark-light-mode-color {
   background-color: #31363F;
 }
@@ -54,9 +69,6 @@ html, body {
 .light-mode-color {
   background-color: #fff2ed;
 }
-
-
-
 </style>
 
 <style scoped>
@@ -67,6 +79,6 @@ html, body {
 
 #main-content {
   width: 100%;
-  
+
 }
 </style>
