@@ -90,6 +90,26 @@ export class TextEditor {
                 this.insertText(text)
             })
         }
+
+        if (char === 'a') {
+            const editorElement = document.querySelector('[cat-text-editor]')
+            const selection = window.getSelection()
+            const range = document.createRange()
+
+            selection.removeAllRanges()
+            
+            range.setStartBefore(editorElement.firstElementChild)
+            range.setEndAfter(editorElement.lastElementChild)
+
+            selection.addRange(range)
+
+            this.setStartSelection(0, 0)
+
+            this.setRowBufferPos(Infinity)
+            this.setColumnBufferPos(Infinity)
+
+            this.setEndSelection()
+        }
     }
 
     static setEditorElement(editor) {
@@ -354,8 +374,8 @@ export class TextEditor {
         if (pos < 0)
             this.cursorBuffer.value[0] = 0
 
-        if (pos > this.textBuffer.value.length) {
-            this.cursorBuffer.value[0] = this.textBuffer.value.length
+        if (pos > this.textBuffer.value.length-1) {
+            this.cursorBuffer.value[0] = this.textBuffer.value.length-1
         } else {
             this.cursorBuffer.value[0] = pos
         }
@@ -398,6 +418,14 @@ export class TextEditor {
 
     static getColumnCursorBufferPos() {
         return this.cursorBuffer.value[1]
+    }
+
+    static setStartSelection(row, column) {
+        TextEditor.selectionBuffer[0] = [row ?? TextEditor.getRowCursorBufferPos(), column ?? TextEditor.getColumnCursorBufferPos()]
+    }
+    
+    static setEndSelection(row, column) {
+        TextEditor.selectionBuffer[1] = [row ?? TextEditor.getRowCursorBufferPos(), column ?? TextEditor.getColumnCursorBufferPos()]
     }
 
     static renderText() {

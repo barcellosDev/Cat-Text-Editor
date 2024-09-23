@@ -22,12 +22,12 @@ onMounted(() => {
 
     editor.onmouseup = () => {
         editor.onmousemove = null
-        TextEditor.selectionBuffer[1] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
+        TextEditor.setEndSelection()
     }
 
     editor.onmousedown = (ev) => {
         setScreenCursorPositionToBuffer(ev)
-        TextEditor.selectionBuffer[0] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
+        TextEditor.setStartSelection()
 
         editor.onmousemove = (ev) => {
             setScreenCursorPositionToBuffer(ev)
@@ -37,7 +37,7 @@ onMounted(() => {
 
             setScreenXToBuffer(newOffsetX)
 
-            TextEditor.selectionBuffer[1] = [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
+            TextEditor.setEndSelection()
         }
     }
 
