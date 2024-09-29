@@ -29,16 +29,55 @@ onMounted(() => {
         setScreenCursorPositionToBuffer(ev)
         TextEditor.setStartSelection()
 
+        if (ev.detail == 2) {
+            TextEditor.setStartSelection(
+                TextEditor.getRowCursorBufferPos(),
+                Math.floor(ev.target.offsetLeft / TextEditor.fontWidth)
+            )
+
+            const newOffsetX = Math.ceil(ev.target.offsetLeft + ev.target.offsetWidth)
+            setScreenXToBuffer(newOffsetX)
+
+            TextEditor.setEndSelection()
+
+            TextEditor.getLine().removeSelected()
+        }
+
+        if (ev.detail == 3) {
+            TextEditor.setStartSelection(
+                TextEditor.getRowCursorBufferPos(),
+                0
+            )
+
+            if (TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos() + 1]) {
+                TextEditor.incrementRowBufferPos()
+                TextEditor.setColumnBufferPos(0)
+            } else {
+                TextEditor.setColumnBufferPos(Infinity)
+            }
+
+            TextEditor.setEndSelection()
+
+            console.log(TextEditor.selectionBuffer)
+
+            TextEditor.getLine().removeSelected()
+        }
+
         editor.onmousemove = (ev) => {
             setScreenCursorPositionToBuffer(ev)
 
             const selection = window.getSelection()
-            const newOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth)
 
-            setScreenXToBuffer(newOffsetX)
+            if (!selection.focusNode?.classList?.contains('line')) {
+                const newOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth)
+                setScreenXToBuffer(newOffsetX)
+                TextEditor.setEndSelection()
+            }
 
-            TextEditor.setEndSelection()
+            TextEditor.getLine().removeSelected()
         }
+
+        store.files[store.selectedFileIndex].cursor = TextEditor.cursorBuffer.value
     }
 
     if (selectedFile) { // has loaded file        
@@ -157,7 +196,8 @@ function getLineElementFrom(element) {
 
 #cursor {
     width: 2px;
-    height: 19px; /* HAS TO BE ON SAME HEIGHT OF THE LINE */
+    height: 19px;
+    /* HAS TO BE ON SAME HEIGHT OF THE LINE */
     background-color: #cacaca;
     position: absolute;
 }

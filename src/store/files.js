@@ -10,19 +10,20 @@ export const useFilesStore = defineStore('files', () => {
      {
       name: 'etc.php',
       path: 'C:\\xampp...',
-      text: (actual file data)
-      changed: false|true
+      text: (actual file data),
+      changed: false|true,
+      cursor: [12, 1]
      }
     */
 
-    files.value.push(Object.assign(fileObj, { changed: false }))
+    files.value.push(Object.assign(fileObj, { changed: false, cursor: [0, 0] }))
     selectedFileIndex.value = files.value.length - 1
   }
 
   function newFile() {
     pushFile({
       name: `Untitled ${files.value.filter(file => !file.path).length + 1}`,
-      text: ''
+      text: '',
     })
   }
 

@@ -23,7 +23,10 @@ function tree(dirPath) {
             fileObj['children'] = tree(filePath)
         }
 
-        treeArray.push(fileObj)
+        if (fileStats.isDirectory())
+            treeArray.unshift(fileObj)
+        else
+            treeArray.push(fileObj)
 
     })
 

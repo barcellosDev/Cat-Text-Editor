@@ -92,14 +92,13 @@ export class TextEditor {
         }
 
         if (char === 'a') {
-            const editorElement = document.querySelector('[cat-text-editor]')
             const selection = window.getSelection()
             const range = document.createRange()
 
             selection.removeAllRanges()
             
-            range.setStartBefore(editorElement.firstElementChild)
-            range.setEndAfter(editorElement.lastElementChild)
+            range.setStartBefore(this.editorElement.firstElementChild)
+            range.setEndAfter(this.editorElement.lastElementChild)
 
             selection.addRange(range)
 
