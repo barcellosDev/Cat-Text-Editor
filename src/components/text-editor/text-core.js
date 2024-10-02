@@ -209,11 +209,11 @@ export class TextEditor {
             if (selectionStartColumn < selectionEndColumn) {
                 this.textBuffer.value[this.getRowCursorBufferPos()].splice(selectionStartColumn, selectionEndColumn - selectionStartColumn)
                 this.getLine().update()
-                this.setColumnBufferPos(selectionEndColumn)
+                this.setColumnBufferPos(selectionStartColumn)
             } else {
                 this.textBuffer.value[this.getRowCursorBufferPos()].splice(selectionEndColumn, selectionStartColumn - selectionEndColumn)
                 this.getLine().update()
-                this.setColumnBufferPos(selectionStartColumn)
+                this.setColumnBufferPos(selectionEndColumn)
             }
 
             this.removeSelection()

@@ -8,42 +8,65 @@ import { useFilesStore } from '@/store/files';
 const store = useFilesStore()
 const selectedFile = store.getSelectedFile()
 
-let textEditorMainContainer, cursor, editor
+let textEditorMainContainer
+let editor
+
 var timeoutHandlerToSaveFileOnMemory
+var canEnterSelectionChange = true
 
 onMounted(() => {
     TextEditor.reset()
 
     editor = document.querySelector('[cat-text-editor]')
-    cursor = document.getElementById('cursor')
+
+    const cursor = document.getElementById('cursor')
+    const editorDomRect = editor.getClientRects()[0]
+
 
     TextEditor.setEditorElement(editor)
     TextEditor.setCursorElement(cursor)
 
     editor.onmouseup = () => {
         editor.onmousemove = null
+        canEnterSelectionChange = true
+
         TextEditor.setEndSelection()
+    }
+
+    document.onselectionchange = (ev) => {
+        if (!canEnterSelectionChange)
+            return
+
+        const selection = document.getSelection()
+
+        if (!selection.isCollapsed && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0)
+            const rect = range.getBoundingClientRect()
+
+            const selectedTextLeftOffset = rect.left - editorDomRect.left
+            const selectedTextRightOffset = rect.right - editorDomRect.left
+
+            TextEditor.setStartSelection(
+                TextEditor.getRowCursorBufferPos(),
+                Math.floor(selectedTextLeftOffset / TextEditor.fontWidth)
+            )
+
+            const newOffsetX = Math.floor(selectedTextRightOffset)
+            setScreenXToBuffer(newOffsetX)
+
+            TextEditor.setEndSelection()
+            TextEditor.getLine().removeSelected()
+        }
+
     }
 
     editor.onmousedown = (ev) => {
         setScreenCursorPositionToBuffer(ev)
         TextEditor.setStartSelection()
 
-        if (ev.detail == 2) {
-            TextEditor.setStartSelection(
-                TextEditor.getRowCursorBufferPos(),
-                Math.floor(ev.target.offsetLeft / TextEditor.fontWidth)
-            )
-
-            const newOffsetX = Math.ceil(ev.target.offsetLeft + ev.target.offsetWidth)
-            setScreenXToBuffer(newOffsetX)
-
-            TextEditor.setEndSelection()
-
-            TextEditor.getLine().removeSelected()
-        }
-
         if (ev.detail == 3) {
+            canEnterSelectionChange = false
+
             TextEditor.setStartSelection(
                 TextEditor.getRowCursorBufferPos(),
                 0
@@ -64,6 +87,8 @@ onMounted(() => {
         }
 
         editor.onmousemove = (ev) => {
+            canEnterSelectionChange = false
+
             setScreenCursorPositionToBuffer(ev)
 
             const selection = window.getSelection()
