@@ -66,7 +66,7 @@ export class TextEditor {
         if (char === 's') {
             const store = useFilesStore()
 
-            store.files[store.selectedFileIndex].text = TextEditor.renderPureText()
+            store.files[store.selectedFileIndex].text = this.renderPureText()
 
             const fileData = JSON.stringify(store.getSelectedFile())
 
@@ -106,8 +106,8 @@ export class TextEditor {
 
             this.setRowBufferPos(Infinity)
             this.setColumnBufferPos(Infinity)
-
-            this.setEndSelection()
+            
+            this.setEndSelection()            
         }
     }
 
@@ -324,7 +324,10 @@ export class TextEditor {
             (keyCode > 64 && keyCode < 91) || // letter keys
             (keyCode > 95 && keyCode < 112) || // numpad keys
             (keyCode > 185 && keyCode <= 193) || // ;=,-./` (in order)
-            (keyCode > 218 && keyCode < 223) // [\]' (in order)
+            (
+                keyCode > 218 && keyCode < 223 &&
+                keyCode !== 219 && keyCode !== 222
+            ) // [\]' (in order)
     }
 
     static setColumnBufferPos(pos) {
@@ -337,7 +340,7 @@ export class TextEditor {
         if (pos < 0)
             this.cursorBuffer.value[1] = 0
 
-        const x = TextEditor.fontWidth * this.cursorBuffer.value[1]
+        const x = this.fontWidth * this.cursorBuffer.value[1]
         this.cursorElement.style.left = `${x}px`
     }
 
@@ -349,7 +352,7 @@ export class TextEditor {
         this.cursorBuffer.value[1]--
 
         const pxFromStyle = Number(this.cursorElement.style.left.split('px')[0])
-        const x = pxFromStyle - TextEditor.fontWidth
+        const x = pxFromStyle - this.fontWidth
 
         this.cursorElement.style.left = `${x}px`
     }
@@ -362,7 +365,7 @@ export class TextEditor {
         this.cursorBuffer.value[1]++
 
         const pxFromStyle = Number(this.cursorElement.style.left.split('px')[0])
-        const x = pxFromStyle + TextEditor.fontWidth
+        const x = pxFromStyle + this.fontWidth
 
         this.cursorElement.style.left = `${x}px`
     }
@@ -381,7 +384,7 @@ export class TextEditor {
 
         this.getLine().setSelected()
 
-        const y = TextEditor.LINE_HEIGHT * this.cursorBuffer.value[0]
+        const y = this.LINE_HEIGHT * this.cursorBuffer.value[0]
         this.cursorElement.style.top = `${y}px`
     }
 
@@ -394,7 +397,7 @@ export class TextEditor {
         this.cursorBuffer.value[0]--
         this.getLine().setSelected()
 
-        const y = this.cursorElement.offsetTop - TextEditor.LINE_HEIGHT
+        const y = this.cursorElement.offsetTop - this.LINE_HEIGHT
         this.cursorElement.style.top = `${y}px`
     }
 
@@ -407,7 +410,7 @@ export class TextEditor {
         this.cursorBuffer.value[0]++
         this.getLine().setSelected()
 
-        const y = this.cursorElement.offsetTop + TextEditor.LINE_HEIGHT
+        const y = this.cursorElement.offsetTop + this.LINE_HEIGHT
         this.cursorElement.style.top = `${y}px`
     }
 
@@ -420,11 +423,11 @@ export class TextEditor {
     }
 
     static setStartSelection(row, column) {
-        TextEditor.selectionBuffer[0] = [row ?? TextEditor.getRowCursorBufferPos(), column ?? TextEditor.getColumnCursorBufferPos()]
+        this.selectionBuffer[0] = [row ?? this.getRowCursorBufferPos(), column ?? this.getColumnCursorBufferPos()]
     }
     
     static setEndSelection(row, column) {
-        TextEditor.selectionBuffer[1] = [row ?? TextEditor.getRowCursorBufferPos(), column ?? TextEditor.getColumnCursorBufferPos()]
+        this.selectionBuffer[1] = [row ?? this.getRowCursorBufferPos(), column ?? this.getColumnCursorBufferPos()]
     }
 
     static renderText() {
