@@ -62,6 +62,7 @@ const colorSchemeByToken = {
 
 const colorSchemeByWord = {
     "class": '#4ec9b0',
+    'new': '#4ec9b0',
     'function': '#dcdcaa',
     'let': '#9cdcfe',
     'var': '#9cdcfe',
@@ -71,31 +72,24 @@ const colorSchemeByWord = {
 export default function highlight(text) {
     const tokens = Array.from(jsTokens(text))
 
-    const parsed = tokens.map((token, index, originalArray) => {
+    let lastToken = tokens[0]
+
+    const parsed = tokens.map((token) => {
         
         let color = colorSchemeByToken[token.type]
 
-        if (token.type === 'WhiteSpace') {
-            token.value = token.value.replace(' ', `&nbsp;`)
-        }
-
         if (token.type === 'IdentifierName') {
-            const previousToken = getPreviousIdentifierNameTokenValue(originalArray, index)
-            
-            if (previousToken !== undefined && colorSchemeByWord[previousToken] !== undefined) {
-                color = colorSchemeByWord[previousToken]
+            if (colorSchemeByWord[lastToken.value]) {
+                color = colorSchemeByWord[lastToken.value]
             }
         }
             
+        lastToken = token
+
+        token.value = token.value.replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
+
         return `<span style="color: ${color}">${token.value}</span>`
     })
 
     return parsed.join('')
-}
-
-function getPreviousIdentifierNameTokenValue(array, indexToStart) {
-    for (let index = indexToStart - 1; index >= 0; index--) {
-        if (array[index].type === 'IdentifierName')
-            return array[index].value
-    }
 }

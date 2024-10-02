@@ -46,10 +46,9 @@ export class LineModel {
         const spanRoot = document.createElement('span')
         spanRoot.className = 'root'
 
-        let rowText = row.join('').replaceAll(' ', '&nbsp;').replaceAll('<', "&lt;").replaceAll('>', "&gt;")
-
-        spanRoot.innerHTML = rowText
-        spanRoot.innerHTML = highlight(spanRoot.innerText)
+        const highLightedText = highlight(row.join(''))
+        
+        spanRoot.innerHTML = highLightedText
 
         return spanRoot
     }
