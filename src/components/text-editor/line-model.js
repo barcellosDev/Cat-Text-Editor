@@ -46,9 +46,12 @@ export class LineModel {
         const spanRoot = document.createElement('span')
         spanRoot.className = 'root'
 
-        const highLightedText = highlight(row.join(''))
-        
-        spanRoot.innerHTML = highLightedText
+        if (row.length > 0) {
+            const highLightedText = highlight(row.join(''))        
+            spanRoot.innerHTML = highLightedText
+        } else {
+            spanRoot.innerText = '\0'
+        }
 
         return spanRoot
     }

@@ -102,12 +102,15 @@ export class TextEditor {
 
             selection.addRange(range)
 
-            this.setStartSelection(0, 0)
+            this.setStartSelection({row: 0, column: 0})
 
             this.setRowBufferPos(Infinity)
             this.setColumnBufferPos(Infinity)
             
-            this.setEndSelection()            
+            this.setEndSelection({
+                row: this.getColumnCursorBufferPos(),
+                column: this.getColumnCursorBufferPos()
+            })            
         }
     }
 
@@ -422,12 +425,34 @@ export class TextEditor {
         return this.cursorBuffer.value[1]
     }
 
-    static setStartSelection(row, column) {
-        this.selectionBuffer[0] = [row ?? this.getRowCursorBufferPos(), column ?? this.getColumnCursorBufferPos()]
+    static setStartSelection({
+        row = null, 
+        column = null
+    }) {
+        if (row !== null)
+            this.selectionBuffer[0][0] = row
+
+        if (column !== null)
+            this.selectionBuffer[0][1] = column
     }
     
-    static setEndSelection(row, column) {
-        this.selectionBuffer[1] = [row ?? this.getRowCursorBufferPos(), column ?? this.getColumnCursorBufferPos()]
+    static setEndSelection({
+        row = null, 
+        column = null
+    }) {
+        if (row !== null)
+            this.selectionBuffer[1][0] = row
+
+        if (column !== null)
+            this.selectionBuffer[1][1] = column
+    }
+
+    static getScreenYToBuffer(offsetY) {
+        return Math.floor(offsetY / TextEditor.LINE_HEIGHT)
+    }
+    
+    static getScreenXToBuffer(offsetX) {
+        return Math.round(Math.abs(offsetX) / TextEditor.fontWidth)
     }
 
     static renderText() {

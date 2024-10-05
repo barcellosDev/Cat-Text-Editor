@@ -20,20 +20,41 @@ onMounted(() => {
     editor = document.querySelector('[cat-text-editor]')
 
     const cursor = document.getElementById('cursor')
-    const editorDomRect = editor.getClientRects()[0]
+    const editorDomRect = editor.getBoundingClientRect()
 
 
     TextEditor.setEditorElement(editor)
     TextEditor.setCursorElement(cursor)
 
-    editor.onmouseup = () => {
+    editor.onmouseup = (ev) => {
         editor.onmousemove = null
         canEnterSelectionChange = true
 
-        TextEditor.setEndSelection()
+        TextEditor.setEndSelection({
+            row: TextEditor.getRowCursorBufferPos(),
+            column: TextEditor.getColumnCursorBufferPos()
+        })
+
+        // CODE TO HANDLE REVERSED SELECTIONS
+        // REFACTOR TO A CLASS SELECTION WITH isReversed property
+        if (
+            TextEditor.selectionBuffer[0][0] > TextEditor.selectionBuffer[1][0] ||
+            TextEditor.selectionBuffer[0][1] > TextEditor.selectionBuffer[1][1]
+        ) {
+            const selection = window.getSelection()
+            const endBufferY = TextEditor.getScreenYToBuffer(getOffsetTopFromElement(ev.target))
+            const startBufferX = TextEditor.getScreenXToBuffer(selection.anchorNode.parentElement.offsetLeft + (selection.anchorOffset * TextEditor.fontWidth))
+            const endBufferX = TextEditor.getScreenXToBuffer(selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth))
+    
+            TextEditor.setStartSelection({column: startBufferX})
+            TextEditor.setEndSelection({
+                row: endBufferY,
+                column: endBufferX
+            })
+        }
     }
 
-    document.onselectionchange = (ev) => {
+    document.onselectionchange = () => {
         if (!canEnterSelectionChange)
             return
 
@@ -42,62 +63,59 @@ onMounted(() => {
         if (!selection.isCollapsed && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0)
             const rect = range.getBoundingClientRect()
-
             const selectedTextLeftOffset = rect.left - editorDomRect.left
             const selectedTextRightOffset = rect.right - editorDomRect.left
 
-            TextEditor.setStartSelection(
-                TextEditor.getRowCursorBufferPos(),
-                Math.floor(selectedTextLeftOffset / TextEditor.fontWidth)
-            )
+            TextEditor.setStartSelection({
+                row: TextEditor.getRowCursorBufferPos(), 
+                column: Math.floor(selectedTextLeftOffset / TextEditor.fontWidth)
+            })
 
-            const newOffsetX = Math.floor(selectedTextRightOffset)
-            setScreenXToBuffer(newOffsetX)
+            let newOffsetX = Math.floor(selectedTextRightOffset)
 
-            TextEditor.setEndSelection()
+            if (range.endContainer?.classList?.contains('line')) {
+                TextEditor.setRowBufferPos( TextEditor.getScreenYToBuffer(range.endContainer.offsetTop) )
+                newOffsetX = 0 // first offset of then next line
+            }
+
+            TextEditor.setColumnBufferPos( TextEditor.getScreenXToBuffer(newOffsetX) )
+            TextEditor.setEndSelection({
+                row: TextEditor.getRowCursorBufferPos(),
+                column: TextEditor.getColumnCursorBufferPos()
+            })
             TextEditor.getLine().removeSelected()
         }
 
     }
 
     editor.onmousedown = (ev) => {
-        setScreenCursorPositionToBuffer(ev)
-        TextEditor.setStartSelection()
 
-        if (ev.detail == 3) {
-            canEnterSelectionChange = false
+        let mouseOffsetX = ev.offsetX
+        let lineOffsetY = getOffsetTopFromElement(ev.target)
 
-            TextEditor.setStartSelection(
-                TextEditor.getRowCursorBufferPos(),
-                0
-            )
+        setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
+        TextEditor.setStartSelection({
+            row: TextEditor.getRowCursorBufferPos(),
+            column: TextEditor.getColumnCursorBufferPos()
+        })
 
-            if (TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos() + 1]) {
-                TextEditor.incrementRowBufferPos()
-                TextEditor.setColumnBufferPos(0)
-            } else {
-                TextEditor.setColumnBufferPos(Infinity)
-            }
-
-            TextEditor.setEndSelection()
-
-            console.log(TextEditor.selectionBuffer)
-
-            TextEditor.getLine().removeSelected()
-        }
+        const selection = window.getSelection()
 
         editor.onmousemove = (ev) => {
             canEnterSelectionChange = false
 
-            setScreenCursorPositionToBuffer(ev)
-
-            const selection = window.getSelection()
+            lineOffsetY = getOffsetTopFromElement(ev.target)
 
             if (!selection.focusNode?.classList?.contains('line')) {
-                const newOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth)
-                setScreenXToBuffer(newOffsetX)
-                TextEditor.setEndSelection()
+                mouseOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth)
             }
+
+            setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
+
+            TextEditor.setEndSelection({
+                row: TextEditor.getRowCursorBufferPos(),
+                column: TextEditor.getColumnCursorBufferPos()
+            })
 
             TextEditor.getLine().removeSelected()
         }
@@ -131,26 +149,21 @@ onUnmounted(() => {
     window.onkeydown = null
 })
 
-function setScreenCursorPositionToBuffer(ev) {
-    let selectedLine = getLineElementFrom(ev.target)
+function setScreenCursorPositionToBuffer(offsetX, offsetY) {
+    TextEditor.setRowBufferPos( TextEditor.getScreenYToBuffer(offsetY) )
+    TextEditor.setColumnBufferPos( TextEditor.getScreenXToBuffer(offsetX) )    
+}
+
+
+
+function getOffsetTopFromElement(element) {
+    let selectedLine = getLineElementFrom(element)
 
     if (!selectedLine) {
         selectedLine = editor.querySelector(`.line:last-child`)
     }
 
-    setScreenYToBuffer(selectedLine)
-    setScreenXToBuffer(ev.offsetX)
-}
-
-function setScreenYToBuffer(line) {
-    const linePos = Math.floor(line.offsetTop / TextEditor.LINE_HEIGHT)
-    TextEditor.setRowBufferPos(linePos)
-}
-
-function setScreenXToBuffer(offsetX) {
-    const charPos = Math.round(Math.abs(offsetX) / TextEditor.fontWidth)
-
-    TextEditor.setColumnBufferPos(charPos)
+    return selectedLine.offsetTop
 }
 
 function getLineElementFrom(element) {
