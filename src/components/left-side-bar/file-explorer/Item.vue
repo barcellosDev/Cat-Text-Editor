@@ -78,7 +78,6 @@ function openFile(file) {
 <style scoped>
 .item {
     padding: 5px;
-    margin: 10px 0 10px 0;
     display: flex;
     align-items: center;
     cursor: pointer;

@@ -71,6 +71,19 @@ body {
   font-family: 'Consolas';
 }
 
+*::-webkit-scrollbar-track {
+    background-color: #31363F;
+}
+
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: #ffffff44;
+}
+
 #app {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;

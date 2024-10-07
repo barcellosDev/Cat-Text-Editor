@@ -34,6 +34,7 @@ export class LineModel {
 
     buildLine(row, index) {
         const divLine = document.createElement('div')
+        divLine.style.lineHeight = `${TextEditor.LINE_HEIGHT}px`
         divLine.className = `line ${index === TextEditor.getRowCursorBufferPos() ? 'line-selected' : ''}`
 
         const spanRoot = this.buildRootSpan(row)
@@ -46,12 +47,8 @@ export class LineModel {
         const spanRoot = document.createElement('span')
         spanRoot.className = 'root'
 
-        if (row.length > 0) {
-            const highLightedText = highlight(row.join(''))        
-            spanRoot.innerHTML = highLightedText
-        } else {
-            spanRoot.innerText = '\0'
-        }
+        const highLightedText = highlight(row.join(''))
+        spanRoot.innerHTML = highLightedText
 
         return spanRoot
     }

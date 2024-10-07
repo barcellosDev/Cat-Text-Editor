@@ -19,7 +19,9 @@ onMounted(() => {
 
     editor = document.querySelector('[cat-text-editor]')
 
-    const cursor = document.getElementById('cursor')
+    const cursor = document.querySelector('.cursor')
+    cursor.style.height = `${TextEditor.LINE_HEIGHT}px`
+
     const editorDomRect = editor.getBoundingClientRect()
 
 
@@ -104,6 +106,10 @@ onMounted(() => {
         editor.onmousemove = (ev) => {
             canEnterSelectionChange = false
 
+            if (!editor.contains(selection.focusNode)) {
+                return
+            }
+
             lineOffsetY = getOffsetTopFromElement(ev.target)
 
             if (!selection.focusNode?.classList?.contains('line')) {
@@ -183,14 +189,14 @@ function getLineElementFrom(element) {
 
     <div id="text-editor-main-container">
         <div id="text-editor-lines">
-            <div v-for="(line, index) in TextEditor.textBuffer.value" :key="index" class="line-count"
+            <div :style="`line-height: ${TextEditor.LINE_HEIGHT}px`" v-for="(line, index) in TextEditor.textBuffer.value" :key="index" class="line-count"
                 :class="{ 'line-count-selected': index === TextEditor.cursorBuffer.value[0] }">
                 {{ index + 1 }}
             </div>
         </div>
 
         <div id="text-editor-content-container">
-            <div id="cursor"></div>
+            <div class="cursor"></div>
 
             <div cat-text-editor id="text-editor-content">
                 <div class="line line-selected">
@@ -232,9 +238,8 @@ function getLineElementFrom(element) {
     background-color: #569cd64b;
 }
 
-#cursor {
+.cursor {
     width: 2px;
-    height: 19px;
     /* HAS TO BE ON SAME HEIGHT OF THE LINE */
     background-color: #cacaca;
     position: absolute;

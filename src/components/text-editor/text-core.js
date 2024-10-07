@@ -4,11 +4,10 @@ import { useFilesStore } from '@/store/files';
 
 export class TextEditor {
     static editorElement = null
+    static cursorElement = null
 
     static LINE_HEIGHT = 19
     static TAB_VALUE = '  '
-
-    static cursorElement = HTMLElement.prototype
 
     static config = {
         fontSize: 16,

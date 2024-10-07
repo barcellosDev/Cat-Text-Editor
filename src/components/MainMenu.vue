@@ -43,6 +43,7 @@ function loadConfigurations() {
     min-width: max-content;
     padding: 10px;
     border-left: 1px solid #5757577e;
+    font-size: .9em;
 }
 
 #main-menu {
