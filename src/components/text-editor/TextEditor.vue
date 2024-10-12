@@ -4,9 +4,10 @@ import { onMounted, onUnmounted } from 'vue';
 import EditorTabs from '../EditorTabs.vue';
 import { TextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
+import { useThemesStore } from '@/store/themes';
 
-const store = useFilesStore()
-const selectedFile = store.getSelectedFile()
+const filesStore = useFilesStore()
+const selectedFile = filesStore.getSelectedFile()
 
 let textEditorMainContainer
 let editor
@@ -14,7 +15,10 @@ let editor
 var timeoutHandlerToSaveFileOnMemory
 var canEnterSelectionChange = true
 
-onMounted(() => {
+onMounted(async () => {
+    const themesStore = useThemesStore()
+    await themesStore.loadHighlighter()
+
     TextEditor.reset()
 
     editor = document.querySelector('[cat-text-editor]')
@@ -47,8 +51,8 @@ onMounted(() => {
             const endBufferY = TextEditor.getScreenYToBuffer(getOffsetTopFromElement(ev.target))
             const startBufferX = TextEditor.getScreenXToBuffer(selection.anchorNode.parentElement.offsetLeft + (selection.anchorOffset * TextEditor.fontWidth))
             const endBufferX = TextEditor.getScreenXToBuffer(selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth))
-    
-            TextEditor.setStartSelection({column: startBufferX})
+
+            TextEditor.setStartSelection({ column: startBufferX })
             TextEditor.setEndSelection({
                 row: endBufferY,
                 column: endBufferX
@@ -69,18 +73,18 @@ onMounted(() => {
             const selectedTextRightOffset = rect.right - editorDomRect.left
 
             TextEditor.setStartSelection({
-                row: TextEditor.getRowCursorBufferPos(), 
+                row: TextEditor.getRowCursorBufferPos(),
                 column: Math.floor(selectedTextLeftOffset / TextEditor.fontWidth)
             })
 
             let newOffsetX = Math.floor(selectedTextRightOffset)
 
             if (range.endContainer?.classList?.contains('line')) {
-                TextEditor.setRowBufferPos( TextEditor.getScreenYToBuffer(range.endContainer.offsetTop) )
+                TextEditor.setRowBufferPos(TextEditor.getScreenYToBuffer(range.endContainer.offsetTop))
                 newOffsetX = 0 // first offset of then next line
             }
 
-            TextEditor.setColumnBufferPos( TextEditor.getScreenXToBuffer(newOffsetX) )
+            TextEditor.setColumnBufferPos(TextEditor.getScreenXToBuffer(newOffsetX))
             TextEditor.setEndSelection({
                 row: TextEditor.getRowCursorBufferPos(),
                 column: TextEditor.getColumnCursorBufferPos()
@@ -126,12 +130,7 @@ onMounted(() => {
             TextEditor.getLine().removeSelected()
         }
 
-        store.files[store.selectedFileIndex].cursor = TextEditor.cursorBuffer.value
-    }
-
-    if (selectedFile) { // has loaded file        
-        TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
-        TextEditor.renderText()
+        filesStore.files[filesStore.selectedFileIndex].cursor = TextEditor.cursorBuffer.value
     }
 
     window.onkeydown = ev => {
@@ -139,7 +138,7 @@ onMounted(() => {
 
         clearTimeout(timeoutHandlerToSaveFileOnMemory)
         timeoutHandlerToSaveFileOnMemory = setTimeout(() => {
-            store.files[store.selectedFileIndex].text = TextEditor.renderPureText()
+            filesStore.files[filesStore.selectedFileIndex].text = TextEditor.renderPureText()
         }, 100)
 
         textEditorMainContainer
@@ -149,6 +148,12 @@ onMounted(() => {
 
     textEditorMainContainer = document.getElementById('text-editor-main-container')
     textEditorMainContainer.style.height = `calc(100% - ${textEditorMainContainer.offsetTop}px)`
+
+
+    if (selectedFile) { // has loaded file        
+        TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
+        TextEditor.renderText()
+    }
 })
 
 onUnmounted(() => {
@@ -156,8 +161,8 @@ onUnmounted(() => {
 })
 
 function setScreenCursorPositionToBuffer(offsetX, offsetY) {
-    TextEditor.setRowBufferPos( TextEditor.getScreenYToBuffer(offsetY) )
-    TextEditor.setColumnBufferPos( TextEditor.getScreenXToBuffer(offsetX) )    
+    TextEditor.setRowBufferPos(TextEditor.getScreenYToBuffer(offsetY))
+    TextEditor.setColumnBufferPos(TextEditor.getScreenXToBuffer(offsetX))
 }
 
 
@@ -189,7 +194,8 @@ function getLineElementFrom(element) {
 
     <div id="text-editor-main-container">
         <div id="text-editor-lines">
-            <div :style="`line-height: ${TextEditor.LINE_HEIGHT}px`" v-for="(line, index) in TextEditor.textBuffer.value" :key="index" class="line-count"
+            <div :style="`line-height: ${TextEditor.LINE_HEIGHT}px`"
+                v-for="(line, index) in TextEditor.textBuffer.value" :key="index" class="line-count"
                 :class="{ 'line-count-selected': index === TextEditor.cursorBuffer.value[0] }">
                 {{ index + 1 }}
             </div>

@@ -194,7 +194,8 @@ async function createWindow() {
       return {
         text: data,
         name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
-        path: filePath
+        path: filePath,
+        extension: path.extname(filePath)
       }
 
     })

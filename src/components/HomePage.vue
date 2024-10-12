@@ -1,13 +1,19 @@
 <script setup>
 import router from '@/router'
 import { useFilesStore } from '@/store/files';
+import { useThemesStore } from '@/store/themes';
+import { onBeforeMount } from 'vue';
 
-const store = useFilesStore()
+const filesStore = useFilesStore()
+
+onBeforeMount(() => {
+    useThemesStore().loadHighlighter()
+})
 
 function openFile() {
     window.electron.onOpenFile(files => {
         files.forEach(fileData => {
-            store.pushFile(fileData)
+            filesStore.pushFile(fileData)
         })
 
         router.push('editor')
@@ -25,7 +31,7 @@ function openFile() {
             </div>
             <div id="links">
                 <p>
-                    <a @click="store.newFile(); router.push('editor')">New file</a>
+                    <a @click="filesStore.newFile(); router.push('editor')">New file</a>
                 </p>
                 <p><a @click="openFile()">Open existing file</a></p>
             </div>

@@ -1,4 +1,3 @@
-import highlight from "./colorize-text"
 import { TextEditor } from "./text-core"
 import { useFilesStore } from '@/store/files';
 
@@ -47,8 +46,8 @@ export class LineModel {
         const spanRoot = document.createElement('span')
         spanRoot.className = 'root'
 
-        const highLightedText = highlight(row.join(''))
-        spanRoot.innerHTML = highLightedText
+        const rowText = row.join('')
+        spanRoot.innerText = rowText
 
         return spanRoot
     }

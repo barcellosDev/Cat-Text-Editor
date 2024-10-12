@@ -11,6 +11,7 @@ export const useFilesStore = defineStore('files', () => {
       name: 'etc.php',
       path: 'C:\\xampp...',
       text: (actual file data),
+      extension: '.ext'
       changed: false|true,
       cursor: [12, 1]
      }
