@@ -9,8 +9,12 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('new-file', () => callback())
     },
 
-    onOpenFile: (callback, filePaths = []) => {
-        ipcRenderer.send('read-file', filePaths)
+    onOpenFile: () => {
+        ipcRenderer.send('open-file')
+    },
+
+    onReadFile: (fileOptions) => {
+        ipcRenderer.send('read-file', fileOptions)
     },
     
     onReceiveFile: (callback) => {

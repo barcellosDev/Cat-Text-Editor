@@ -13,7 +13,12 @@ export const useFilesStore = defineStore('files', () => {
       text: (actual file data),
       extension: '.ext'
       changed: false|true,
-      cursor: [12, 1]
+      cursor: [12, 1],
+      buffer: {
+        start: 0,
+        end: 29832,
+        remaining: (total size of file - bytesRead from stream )
+      }
      }
     */
 

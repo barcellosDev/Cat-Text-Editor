@@ -11,13 +11,7 @@ onBeforeMount(() => {
 })
 
 function openFile() {
-    window.electron.onOpenFile(files => {
-        files.forEach(fileData => {
-            filesStore.pushFile(fileData)
-        })
-
-        router.push('editor')
-    })
+    window.electron.onOpenFile()
 }
 
 </script>

@@ -1,9 +1,5 @@
 <script setup>
 import { defineProps, computed, ref } from 'vue';
-import router from '@/router'
-import { useFilesStore } from '@/store/files';
-
-const store = useFilesStore()
 
 const spacingOffset = 20
 
@@ -40,16 +36,10 @@ function toggleShowChildren() {
 function openFile(file) {
     if (file.type === 'directory')
         return
-    
-    const filePath = file.path
 
-    window.electron.onOpenFile(files => {
-        files.forEach(fileData => {
-            store.pushFile(fileData)
-        })
-        
-        router.push('editor')
-    }, [filePath])
+    window.electron.onReadFile({
+        path: file.path
+    })
 }
 
 </script>

@@ -3,9 +3,9 @@
 import { app, protocol, BrowserWindow, Menu, dialog, ipcMain } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
-import path from 'path'
-import { readFileSync, statSync } from 'fs'
-import { writeFile } from 'fs/promises'
+import * as nodePath from 'path'
+import { statSync } from 'fs'
+import { writeFile, open } from 'fs/promises'
 import * as utils from './utils'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
@@ -75,7 +75,7 @@ async function createWindow() {
       // See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
       nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
       contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION,
-      preload: path.join(__dirname, 'preload.js')
+      preload: nodePath.join(__dirname, 'preload.js')
     }
   })
 
@@ -104,8 +104,11 @@ async function createWindow() {
         },
         {
           label: 'Open File',
-          click() {
-            ipcReadFile()
+          async click() {
+            const files = await ipcOpenFile()
+
+            if (files)
+              win.webContents.send('receive-file', files)
           }
         }
       ]
@@ -123,7 +126,23 @@ async function createWindow() {
     }
   ]))
 
-  ipcMain.on('read-file', async (event, filePaths) => ipcReadFile(filePaths))
+  ipcMain.on('open-file', async () => {
+
+    const files = await ipcOpenFile()
+
+    if (files)
+      win.webContents.send('receive-file', files)
+
+  })
+
+  ipcMain.on('read-file', async (event, fileOptions) => {
+    const fileData = await ipcReadFile({
+      path: fileOptions.path
+    })
+
+    win.webContents.send('receive-file', fileData)
+  })
+
   ipcMain.on('read-dir', async () => ipcReadDir())
 
   ipcMain.on('save-file', async (event, fileData) => {
@@ -143,7 +162,7 @@ async function createWindow() {
     try {
       await writeFile(fileObj.path, fileObj.text, { flag: 'w', encoding: 'utf-8' })
 
-      fileObj.name = path.basename(fileObj.path)
+      fileObj.name = nodePath.basename(fileObj.path)
       fileObj.changed = false
 
       win.webContents.send('saved-file', JSON.stringify(fileObj))
@@ -165,7 +184,7 @@ async function createWindow() {
         const fileStats = statSync(dirPath)
 
         return [{
-          name: path.basename(dirPath),
+          name: nodePath.basename(dirPath),
           type: 'directory',
           size: fileStats.size,
           path: dirPath,
@@ -178,28 +197,69 @@ async function createWindow() {
     }
   }
 
-  async function ipcReadFile(filePaths = []) {
-    if (filePaths.length === 0) {
-      const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
 
-      if (result.canceled)
-        return
+  async function ipcOpenFile() {
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] })
 
-      filePaths = result.filePaths
-    }
+    if (result.canceled)
+      return false
 
-    const files = filePaths.map(filePath => {
-      const data = readFileSync(filePath, { encoding: 'utf-8' })
+    const filePaths = result.filePaths
 
-      return {
-        text: data,
-        name: process.platform === 'win32' ? path.win32.basename(filePath) : path.posix.basename(filePath),
-        path: filePath,
-        extension: path.extname(filePath)
-      }
-
+    const filePromises = filePaths.map(async filePath => {      
+      return await ipcReadFile({path: filePath})
     })
 
-    win.webContents.send('receive-file', files)
+    return await Promise.all(filePromises)
   }
+
+  async function ipcReadFile({
+    path = null,
+    start = 0,
+    end = null
+  }) {
+
+    if (!path) {
+      throw new Error('Defina um caminho para ler o arquivo')
+    }
+
+    if (end === null) {
+      end = utils.convertToBytes(64, 'KB')
+    }
+
+    const fileHandler = await open(path, 'r')
+    const stream = fileHandler.createReadStream({
+      encoding: 'utf-8',
+      start,
+      end
+    })
+
+    const fileSize = statSync(path).size
+
+    return new Promise(resolve => {
+      let data = ''
+
+      stream.on('data', (chunk) => {
+        data += chunk
+      })
+
+      stream.on('end', () => {
+        fileHandler.close()
+
+        resolve({
+          text: data,
+          name: process.platform === 'win32' ? nodePath.win32.basename(path) : nodePath.posix.basename(path),
+          path: path,
+          extension: nodePath.extname(path),
+          buffer: {
+            start,
+            end,
+            remaining: fileSize - stream.bytesRead,
+            total: fileSize
+          }
+        })
+      })
+    })
+  }
+
 }
