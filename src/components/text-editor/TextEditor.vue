@@ -8,6 +8,8 @@ import { useThemesStore } from '@/store/themes';
 
 const filesStore = useFilesStore()
 const selectedFile = filesStore.getSelectedFile()
+const themesStore = useThemesStore()
+
 
 let textEditorMainContainer
 let editor
@@ -15,19 +17,16 @@ let editor
 var timeoutHandlerToSaveFileOnMemory
 var canEnterSelectionChange = true
 
-onMounted(async () => {
-    const themesStore = useThemesStore()
-    await themesStore.loadHighlighter()
-
+onMounted(() => {    
     TextEditor.reset()
 
+    textEditorMainContainer = document.getElementById('text-editor-main-container')
     editor = document.querySelector('[cat-text-editor]')
 
     const cursor = document.querySelector('.cursor')
     cursor.style.height = `${TextEditor.LINE_HEIGHT}px`
 
     const editorDomRect = editor.getBoundingClientRect()
-
 
     TextEditor.setEditorElement(editor)
     TextEditor.setCursorElement(cursor)
@@ -69,8 +68,9 @@ onMounted(async () => {
         if (!selection.isCollapsed && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0)
             const rect = range.getBoundingClientRect()
-            const selectedTextLeftOffset = rect.left - editorDomRect.left
-            const selectedTextRightOffset = rect.right - editorDomRect.left
+
+            const selectedTextLeftOffset = rect.left - editorDomRect.left + textEditorMainContainer.scrollLeft
+            const selectedTextRightOffset = rect.right - editorDomRect.left + textEditorMainContainer.scrollLeft
 
             TextEditor.setStartSelection({
                 row: TextEditor.getRowCursorBufferPos(),
@@ -140,15 +140,26 @@ onMounted(async () => {
         timeoutHandlerToSaveFileOnMemory = setTimeout(() => {
             filesStore.files[filesStore.selectedFileIndex].text = TextEditor.renderPureText()
         }, 100)
-
-        textEditorMainContainer
-            .querySelectorAll('#text-editor-lines, #text-editor-content')
-            .forEach(el => el.style.height = `${textEditorMainContainer.scrollHeight}px`)
     }
 
-    textEditorMainContainer = document.getElementById('text-editor-main-container')
-    textEditorMainContainer.style.height = `calc(100% - ${textEditorMainContainer.offsetTop}px)`
 
+    let ticking = false
+    textEditorMainContainer.onscroll = () => {
+        if (!ticking) {
+            window.requestAnimationFrame(() => {
+                TextEditor.getOnlyViewPortBuffer()
+                ticking = false
+            })
+
+            ticking = true
+        }
+    }
+
+    window.addEventListener('resize', setMainEditorContainerHeight)
+    window.addEventListener('resize', setEditorWidth)
+
+    setMainEditorContainerHeight()
+    setEditorWidth()
 
     if (selectedFile) { // has loaded file        
         TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
@@ -158,14 +169,23 @@ onMounted(async () => {
 
 onUnmounted(() => {
     window.onkeydown = null
+    window.removeEventListener('resize', setMainEditorContainerHeight)
+    window.removeEventListener('resize', setEditorWidth)
 })
+
+
+function setEditorWidth() {
+    textEditorMainContainer.style.width = `${window.innerWidth - Math.abs(textEditorMainContainer.getBoundingClientRect().left)}px`
+}
+
+function setMainEditorContainerHeight() {
+    textEditorMainContainer.style.height = `${window.innerHeight - Math.abs(textEditorMainContainer.getBoundingClientRect().top) - document.getElementById('app-footer').offsetHeight}px`
+}
 
 function setScreenCursorPositionToBuffer(offsetX, offsetY) {
     TextEditor.setRowBufferPos(TextEditor.getScreenYToBuffer(offsetY))
     TextEditor.setColumnBufferPos(TextEditor.getScreenXToBuffer(offsetX))
 }
-
-
 
 function getOffsetTopFromElement(element) {
     let selectedLine = getLineElementFrom(element)
@@ -219,12 +239,11 @@ function getLineElementFrom(element) {
     position: relative;
     height: 100%;
     display: flex;
-    overflow-y: auto;
+    overflow: scroll
 }
 
 #text-editor-content-container {
     position: relative;
-    width: 100%;
 }
 
 #text-editor-lines {

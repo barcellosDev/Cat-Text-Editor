@@ -465,6 +465,16 @@ export class TextEditor {
         })
     }
 
+    static getOnlyViewPortBuffer() {
+        let start = 0
+
+        const editorVh = this.editorElement.offsetHeight
+        const linesPerEditorVh = Math.ceil(editorVh / this.LINE_HEIGHT)
+        const viewPortBuffer = this.textBuffer.value.slice(start, linesPerEditorVh)
+
+        return viewPortBuffer
+    }
+
     static parseText(text) {
         text = text.replace(/\r\n/g, '\n').replace(/\t/g, this.TAB_VALUE)
         const lines = text.split('\n')

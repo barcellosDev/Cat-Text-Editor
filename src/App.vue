@@ -4,6 +4,8 @@ import MainMenu from './components/MainMenu.vue';
 import { onMounted, computed } from 'vue';
 import router from './router';
 import { useFilesStore } from '@/store/files';
+import { useThemesStore } from '@/store/themes';
+
 
 const store = useFilesStore()
 
@@ -15,7 +17,10 @@ const columnPos = computed(() => {
   return store.files[store.selectedFileIndex].cursor[1] + 1
 })
 
-onMounted(() => {
+onMounted(async () => {
+  const themesStore = useThemesStore()
+  await themesStore.loadHighlighter()
+
   window.electron.onChangeRoute(path => {
     router.push(path)
   })
@@ -33,11 +38,16 @@ onMounted(() => {
     router.push('editor')
   })
 
-  window.onresize = () => {
-    const mainMenuWidth = document.getElementById('main-menu').offsetWidth
-    document.getElementById('main-content').style.width = `calc(100% - ${mainMenuWidth}px)`
-  }
+  window.addEventListener('resize', setMainAppContainerHeight)
+
+  setMainAppContainerHeight()
 })
+
+function setMainAppContainerHeight() {
+  const appFooter = document.getElementById('app-footer')
+  document.getElementById('main-app-container').style.height = `${window.innerHeight - appFooter.offsetHeight}px`
+}
+
 </script>
 
 <template>
@@ -107,11 +117,14 @@ body {
 <style scoped>
 #main-app-container {
   display: flex;
-  height: 100%;
+  flex: 1;
 }
 
 #main-app-container-wrapper {
-  height: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 #main-content {
@@ -120,6 +133,7 @@ body {
 
 #app-footer {
 
+  height: 20px;
   color: white;
   padding: 2px;
   background-color: #569cd6;

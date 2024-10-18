@@ -140,7 +140,7 @@ async function createWindow() {
       path: fileOptions.path
     })
 
-    win.webContents.send('receive-file', fileData)
+    win.webContents.send('receive-file', [fileData])
   })
 
   ipcMain.on('read-dir', async () => ipcReadDir())

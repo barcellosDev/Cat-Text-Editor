@@ -36,6 +36,6 @@ export const useThemesStore = defineStore('themes', () => {
 
     return {
         highlightCode,
-        loadHighlighter
+        loadHighlighter,
     }
 })
