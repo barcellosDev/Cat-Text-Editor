@@ -5,6 +5,8 @@ import EditorTabs from '../EditorTabs.vue';
 import { TextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
 import { useThemesStore } from '@/store/themes';
+import { LineModel } from "./line-model"
+
 
 const filesStore = useFilesStore()
 const selectedFile = filesStore.getSelectedFile()
@@ -13,22 +15,25 @@ const themesStore = useThemesStore()
 
 let textEditorMainContainer
 let editor
+let editorLines
+let editorDomRect
 
 var timeoutHandlerToSaveFileOnMemory
 var canEnterSelectionChange = true
 
-onMounted(() => {    
+onMounted(() => {
     TextEditor.reset()
 
     textEditorMainContainer = document.getElementById('text-editor-main-container')
-    editor = document.querySelector('[cat-text-editor]')
+    editor = textEditorMainContainer.querySelector('[cat-text-editor]')
+    editorLines = textEditorMainContainer.querySelector('#text-editor-lines')
 
     const cursor = document.querySelector('.cursor')
     cursor.style.height = `${TextEditor.LINE_HEIGHT}px`
 
-    const editorDomRect = editor.getBoundingClientRect()
-
     TextEditor.setEditorElement(editor)
+    TextEditor.setEditorContainerElement(textEditorMainContainer)
+    TextEditor.setEditorLinesElement(editorLines)
     TextEditor.setCursorElement(cursor)
 
     editor.onmouseup = (ev) => {
@@ -100,6 +105,7 @@ onMounted(() => {
         let lineOffsetY = getOffsetTopFromElement(ev.target)
 
         setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
+
         TextEditor.setStartSelection({
             row: TextEditor.getRowCursorBufferPos(),
             column: TextEditor.getColumnCursorBufferPos()
@@ -143,38 +149,58 @@ onMounted(() => {
     }
 
 
-    let ticking = false
-    textEditorMainContainer.onscroll = () => {
-        if (!ticking) {
-            window.requestAnimationFrame(() => {
-                TextEditor.getOnlyViewPortBuffer()
-                ticking = false
-            })
 
-            ticking = true
-        }
+    let lastScrollTop = null
+
+    textEditorMainContainer.onscroll = () => {
+        window.requestAnimationFrame(() => {
+
+            if (textEditorMainContainer.scrollTop === lastScrollTop)
+                return
+
+            const deadLineToLoadNewBuffer = ((textEditorMainContainer.scrollHeight - textEditorMainContainer.scrollTop) - textEditorMainContainer.offsetHeight) <= textEditorMainContainer.offsetHeight
+            console.log(deadLineToLoadNewBuffer)
+
+            TextEditor.renderContent()
+
+            lastScrollTop = textEditorMainContainer.scrollTop
+        })
     }
 
     window.addEventListener('resize', setMainEditorContainerHeight)
-    window.addEventListener('resize', setEditorWidth)
-
-    setMainEditorContainerHeight()
-    setEditorWidth()
+    window.addEventListener('resize', setEditorContainerWidth)
+    window.addEventListener('ui-change', setEditorDomRect)
 
     if (selectedFile) { // has loaded file        
         TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
-        TextEditor.renderText()
+
+        document.getElementById('text-editor-content-container').style.height = `${TextEditor.textBuffer.value.length * TextEditor.LINE_HEIGHT}px`
+
+        TextEditor.renderContent()
     }
+
+    setEditorDomRect()
+    setMainEditorContainerHeight()
+    setEditorContainerWidth()
+    setEditorWidth()
 })
 
 onUnmounted(() => {
     window.onkeydown = null
     window.removeEventListener('resize', setMainEditorContainerHeight)
-    window.removeEventListener('resize', setEditorWidth)
+    window.removeEventListener('resize', setEditorContainerWidth)
+    window.removeEventListener('ui-change', setEditorDomRect)
 })
 
+function setEditorDomRect() {
+    editorDomRect = editor.getBoundingClientRect()
+}
 
 function setEditorWidth() {
+    editor.style.width = `calc(100% + ${textEditorMainContainer.scrollWidth}px)`
+}
+
+function setEditorContainerWidth() {
     textEditorMainContainer.style.width = `${window.innerWidth - Math.abs(textEditorMainContainer.getBoundingClientRect().left)}px`
 }
 
@@ -213,20 +239,17 @@ function getLineElementFrom(element) {
     <EditorTabs></EditorTabs>
 
     <div id="text-editor-main-container">
-        <div id="text-editor-lines">
-            <div :style="`line-height: ${TextEditor.LINE_HEIGHT}px`"
-                v-for="(line, index) in TextEditor.textBuffer.value" :key="index" class="line-count"
-                :class="{ 'line-count-selected': index === TextEditor.cursorBuffer.value[0] }">
-                {{ index + 1 }}
-            </div>
-        </div>
-
         <div id="text-editor-content-container">
-            <div class="cursor"></div>
+            <div id="text-editor-lines">
+            </div>
 
-            <div cat-text-editor id="text-editor-content">
-                <div class="line line-selected">
-                    <span class="root"></span>
+            <div id="cat-text-editor-wrapper">
+                <div class="cursor"></div>
+
+                <div cat-text-editor id="text-editor-content">
+                    <div class="line line-selected">
+                        <span class="root"></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -238,12 +261,18 @@ function getLineElementFrom(element) {
     color: whitesmoke;
     position: relative;
     height: 100%;
-    display: flex;
-    overflow: scroll
+    overflow: scroll;
 }
 
 #text-editor-content-container {
     position: relative;
+    width: 100%;
+    display: flex;
+}
+
+#cat-text-editor-wrapper {
+    position: relative;
+    width: 100%
 }
 
 #text-editor-lines {
@@ -274,7 +303,8 @@ function getLineElementFrom(element) {
 <style>
 .line-count,
 .line {
-    position: relative;
+    position: absolute;
+    width: 100%;
 }
 
 .line-count {
@@ -283,7 +313,7 @@ function getLineElementFrom(element) {
 }
 
 .line-count-selected {
-    color: inherit;
+    color: whitesmoke;
 }
 
 .line {

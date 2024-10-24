@@ -4,6 +4,8 @@ import { useFilesStore } from '@/store/files';
 
 export class TextEditor {
     static editorElement = null
+    static editorContainer = null
+    static editorLinesElement = null
     static cursorElement = null
 
     static LINE_HEIGHT = 19
@@ -95,26 +97,34 @@ export class TextEditor {
             const range = document.createRange()
 
             selection.removeAllRanges()
-            
+
             range.setStartBefore(this.editorElement.firstElementChild)
             range.setEndAfter(this.editorElement.lastElementChild)
 
             selection.addRange(range)
 
-            this.setStartSelection({row: 0, column: 0})
+            this.setStartSelection({ row: 0, column: 0 })
 
             this.setRowBufferPos(Infinity)
             this.setColumnBufferPos(Infinity)
-            
+
             this.setEndSelection({
                 row: this.getColumnCursorBufferPos(),
                 column: this.getColumnCursorBufferPos()
-            })            
+            })
         }
     }
 
     static setEditorElement(editor) {
         this.editorElement = editor
+    }
+
+    static setEditorContainerElement(editorContainer) {
+        this.editorContainer = editorContainer
+    }
+
+    static setEditorLinesElement(editorLines) {
+        this.editorLinesElement = editorLines
     }
 
     static setCursorElement(cursor) {
@@ -145,8 +155,8 @@ export class TextEditor {
 
             for (let count = 1; count <= 2; count++)
                 this.insertText(char)
-            
-            this.getLine().update()                
+
+            this.getLine().update()
             return
         }
 
@@ -162,7 +172,7 @@ export class TextEditor {
         if (!row)
             row = this.getRowCursorBufferPos()
 
-        return this.lineBuffer[row]
+        return this.lineBuffer.filter(line => line.index === row)[0] ?? null
     }
 
     static deleteLine(row = null) {
@@ -170,6 +180,9 @@ export class TextEditor {
             row = this.getRowCursorBufferPos()
 
         const Line = this.getLine(row)
+
+        if (!Line)
+            return null
 
         Line.element.remove()
         this.lineBuffer.splice(row, 1)
@@ -223,7 +236,7 @@ export class TextEditor {
             return
         }
 
-        if (selectionEndRow > selectionStartRow ) {
+        if (selectionEndRow > selectionStartRow) {
             const startLineData = this.textBuffer.value[selectionEndRow].splice(selectionEndColumn, Infinity)
 
             for (let index = selectionEndRow; index > selectionStartRow; index--) {
@@ -374,12 +387,12 @@ export class TextEditor {
 
     static setRowBufferPos(pos) {
         this.getLine()?.removeSelected()
-        
+
         if (pos < 0)
             this.cursorBuffer.value[0] = 0
 
-        if (pos > this.textBuffer.value.length-1) {
-            this.cursorBuffer.value[0] = this.textBuffer.value.length-1
+        if (pos > this.textBuffer.value.length - 1) {
+            this.cursorBuffer.value[0] = this.textBuffer.value.length - 1
         } else {
             this.cursorBuffer.value[0] = pos
         }
@@ -425,7 +438,7 @@ export class TextEditor {
     }
 
     static setStartSelection({
-        row = null, 
+        row = null,
         column = null
     }) {
         if (row !== null)
@@ -434,9 +447,9 @@ export class TextEditor {
         if (column !== null)
             this.selectionBuffer[0][1] = column
     }
-    
+
     static setEndSelection({
-        row = null, 
+        row = null,
         column = null
     }) {
         if (row !== null)
@@ -449,30 +462,35 @@ export class TextEditor {
     static getScreenYToBuffer(offsetY) {
         return Math.floor(offsetY / TextEditor.LINE_HEIGHT)
     }
-    
+
     static getScreenXToBuffer(offsetX) {
         return Math.round(Math.abs(offsetX) / TextEditor.fontWidth)
     }
 
-    static renderText() {
-        this.editorElement.innerHTML = ''
+    static renderContent() {
 
-        this.textBuffer.value.forEach((row, index) => {
+        const { start, end } = this.getOnlyViewPortRange()
+
+        this.editorElement.innerHTML = ''
+        this.editorLinesElement.innerHTML = ''
+        this.lineBuffer = []
+
+        for (let index = start; index <= end; index++) {
+            const row = this.textBuffer.value[index]
             const Line = new LineModel(row, index)
 
-            this.editorElement.appendChild(Line.element)
             this.lineBuffer.push(Line)
-        })
+            this.editorLinesElement.appendChild(Line.lineCountElement)
+            this.editorElement.appendChild(Line.element)
+        }
     }
 
-    static getOnlyViewPortBuffer() {
-        let start = 0
+    static getOnlyViewPortRange() {
+        const bufferOffset = 10 // load more items to scroll look smoother
+        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT) - bufferOffset)
+        const lastLineOffset = Math.min(this.textBuffer.value.length-1, Math.floor((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT) + bufferOffset)
 
-        const editorVh = this.editorElement.offsetHeight
-        const linesPerEditorVh = Math.ceil(editorVh / this.LINE_HEIGHT)
-        const viewPortBuffer = this.textBuffer.value.slice(start, linesPerEditorVh)
-
-        return viewPortBuffer
+        return { start: firstLineOffset, end: lastLineOffset }
     }
 
     static parseText(text) {

@@ -224,7 +224,7 @@ async function createWindow() {
     }
 
     if (end === null) {
-      end = utils.convertToBytes(64, 'KB')
+      end = utils.convertToBytes(128, 'KB')
     }
 
     const fileHandler = await open(path, 'r')

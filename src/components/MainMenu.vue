@@ -1,7 +1,7 @@
 <script setup>
 import FileExplorer from '@/components/left-side-bar/file-explorer/FileExplorer.vue'
 import Configuration from '@/components/left-side-bar/Configuration.vue'
-import { ref } from 'vue';
+import { onUpdated, ref } from 'vue';
 
 const fileExplorerSideBar = ref(false)
 const configSideBar = ref(false)
@@ -15,6 +15,11 @@ function loadConfigurations() {
     configSideBar.value = !configSideBar.value
     fileExplorerSideBar.value = false
 }
+
+onUpdated(() => {
+    window.dispatchEvent(new Event('resize'))
+    window.dispatchEvent(new Event('ui-change'))
+})
 
 </script>
 
