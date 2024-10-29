@@ -23,10 +23,7 @@ export const useThemesStore = defineStore('themes', () => {
 
     function highlightCode(text) {
         const fileObj = filesStore.getSelectedFile()
-
         const fileType = fileExtensionToLang[fileObj.extension]
-
-        console.log(fileType)
 
         return highlighter.value.codeToHtml(text, {
             lang: fileType,

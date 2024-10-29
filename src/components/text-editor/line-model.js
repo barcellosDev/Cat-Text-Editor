@@ -1,5 +1,6 @@
 import { TextEditor } from "./text-core"
 import { useFilesStore } from '@/store/files';
+import { useThemesStore } from '@/store/themes';
 
 export class LineModel {
     element
@@ -65,11 +66,18 @@ export class LineModel {
     }
 
     buildRootSpan() {
+        const themesStore = useThemesStore()
         const spanRoot = document.createElement('span')
+
         spanRoot.className = 'root'
 
         const rowText = this.row.join('')
-        spanRoot.innerText = rowText
+
+        const highLightedText = themesStore.highlightCode(rowText)
+        const parsedHtml = (new DOMParser()).parseFromString(highLightedText, 'text/html')
+        const highLightedCode = parsedHtml.querySelector('code > .line').innerHTML
+
+        spanRoot.innerHTML = highLightedCode
 
         return spanRoot
     }

@@ -4,26 +4,25 @@ import { onMounted, onUnmounted } from 'vue';
 import EditorTabs from '../EditorTabs.vue';
 import { TextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
-import { useThemesStore } from '@/store/themes';
-import { LineModel } from "./line-model"
+import { Selection } from "./selection";
+
 
 
 const filesStore = useFilesStore()
 const selectedFile = filesStore.getSelectedFile()
-const themesStore = useThemesStore()
-
 
 let textEditorMainContainer
 let editor
 let editorLines
 let editorDomRect
+let selectionsArea
 
 var timeoutHandlerToSaveFileOnMemory
 var canEnterSelectionChange = true
 
-onMounted(() => {
-    TextEditor.reset()
+onMounted(() => {    
 
+    selectionsArea = document.getElementById('selections')
     textEditorMainContainer = document.getElementById('text-editor-main-container')
     editor = textEditorMainContainer.querySelector('[cat-text-editor]')
     editorLines = textEditorMainContainer.querySelector('#text-editor-lines')
@@ -36,32 +35,33 @@ onMounted(() => {
     TextEditor.setEditorLinesElement(editorLines)
     TextEditor.setCursorElement(cursor)
 
+    Selection.setSelectionsAreaElement(selectionsArea)
+
     editor.onmouseup = (ev) => {
         editor.onmousemove = null
         canEnterSelectionChange = true
 
-        TextEditor.setEndSelection({
+        Selection.setEnd({
             row: TextEditor.getRowCursorBufferPos(),
             column: TextEditor.getColumnCursorBufferPos()
         })
 
         // CODE TO HANDLE REVERSED SELECTIONS
         // REFACTOR TO A CLASS SELECTION WITH isReversed property
-        if (
-            TextEditor.selectionBuffer[0][0] > TextEditor.selectionBuffer[1][0] ||
-            TextEditor.selectionBuffer[0][1] > TextEditor.selectionBuffer[1][1]
-        ) {
+        if (Selection.isReversed()) {
             const selection = window.getSelection()
             const endBufferY = TextEditor.getScreenYToBuffer(getOffsetTopFromElement(ev.target))
             const startBufferX = TextEditor.getScreenXToBuffer(selection.anchorNode.parentElement.offsetLeft + (selection.anchorOffset * TextEditor.fontWidth))
             const endBufferX = TextEditor.getScreenXToBuffer(selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth))
 
-            TextEditor.setStartSelection({ column: startBufferX })
-            TextEditor.setEndSelection({
+            Selection.setStart({ column: startBufferX })
+            Selection.setEnd({
                 row: endBufferY,
                 column: endBufferX
             })
         }
+
+        
     }
 
     document.onselectionchange = () => {
@@ -77,7 +77,7 @@ onMounted(() => {
             const selectedTextLeftOffset = rect.left - editorDomRect.left + textEditorMainContainer.scrollLeft
             const selectedTextRightOffset = rect.right - editorDomRect.left + textEditorMainContainer.scrollLeft
 
-            TextEditor.setStartSelection({
+            Selection.setStart({
                 row: TextEditor.getRowCursorBufferPos(),
                 column: Math.floor(selectedTextLeftOffset / TextEditor.fontWidth)
             })
@@ -86,27 +86,30 @@ onMounted(() => {
 
             if (range.endContainer?.classList?.contains('line')) {
                 TextEditor.setRowBufferPos(TextEditor.getScreenYToBuffer(range.endContainer.offsetTop))
-                newOffsetX = 0 // first offset of then next line
+                newOffsetX = 0 // first offset of the next line
             }
 
             TextEditor.setColumnBufferPos(TextEditor.getScreenXToBuffer(newOffsetX))
-            TextEditor.setEndSelection({
+
+            Selection.setEnd({
                 row: TextEditor.getRowCursorBufferPos(),
                 column: TextEditor.getColumnCursorBufferPos()
             })
-            TextEditor.getLine().removeSelected()
+
+
         }
 
     }
 
     editor.onmousedown = (ev) => {
+        Selection.clear()
 
         let mouseOffsetX = ev.offsetX
         let lineOffsetY = getOffsetTopFromElement(ev.target)
 
         setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
 
-        TextEditor.setStartSelection({
+        Selection.setStart({
             row: TextEditor.getRowCursorBufferPos(),
             column: TextEditor.getColumnCursorBufferPos()
         })
@@ -128,12 +131,10 @@ onMounted(() => {
 
             setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
 
-            TextEditor.setEndSelection({
+            Selection.setEnd({
                 row: TextEditor.getRowCursorBufferPos(),
                 column: TextEditor.getColumnCursorBufferPos()
             })
-
-            TextEditor.getLine().removeSelected()
         }
 
         filesStore.files[filesStore.selectedFileIndex].cursor = TextEditor.cursorBuffer.value
@@ -170,6 +171,8 @@ onMounted(() => {
     window.addEventListener('resize', setMainEditorContainerHeight)
     window.addEventListener('resize', setEditorContainerWidth)
     window.addEventListener('ui-change', setEditorDomRect)
+
+    TextEditor.reset()
 
     if (selectedFile) { // has loaded file        
         TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
@@ -244,7 +247,14 @@ function getLineElementFrom(element) {
             </div>
 
             <div id="cat-text-editor-wrapper">
-                <div class="cursor"></div>
+                <div id="absolute-interactions">
+                    <div id="cursors">
+                        <div class="cursor"></div>
+                    </div>
+                    <div id="selections">
+
+                    </div>
+                </div>
 
                 <div cat-text-editor id="text-editor-content">
                     <div class="line line-selected">
@@ -275,6 +285,7 @@ function getLineElementFrom(element) {
     width: 100%
 }
 
+
 #text-editor-lines {
     position: relative;
     min-width: 60px;
@@ -289,7 +300,7 @@ function getLineElementFrom(element) {
 }
 
 #text-editor-content ::selection {
-    background-color: #569cd64b;
+    background: none;
 }
 
 .cursor {
@@ -301,6 +312,13 @@ function getLineElementFrom(element) {
 </style>
 
 <style>
+.selected-text {
+    padding: 1px;
+    border-radius: 5px;
+    background-color: #569cd64b;
+    position: absolute;
+}
+
 .line-count,
 .line {
     position: absolute;
