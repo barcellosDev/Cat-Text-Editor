@@ -31,13 +31,12 @@ export class TextEditor {
     static lineBuffer = []
 
     static notPrint = {
-        37: () => {
+        37: () => { // arrowLeft
             this.decrementColumnBufferPos()
-        }, // arrowLeft
+        },
         38: () => { // arrowUp
-            this.getLine()?.removeSelected?.()
             this.decrementRowBufferPos()
-            this.getLine().setSelected()
+            this.getLineModelBuffer().setSelected()
 
             if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length)
                 this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
@@ -46,21 +45,20 @@ export class TextEditor {
             this.incrementColumnBufferPos()
         },
         40: () => { // arrowDown
-            this.getLine()?.removeSelected?.()
             this.incrementRowBufferPos()
-            this.getLine().setSelected()
+            this.getLineModelBuffer().setSelected()
 
             if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length)
                 this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
         },
         13: () => { // enter
-            this.getLine()?.removeSelected?.()
             this.insertLine()
-            this.getLine().setSelected()
+            this.getLineModelBuffer().setSelected()
         },
-        8: () => {
+        8: () => { // backspace
             this.handleBackSpace()
-        }, // backspace
+            this.getLineModelBuffer().setSelected()
+        },
         35: () => { // end
             this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
         },
@@ -162,7 +160,7 @@ export class TextEditor {
             for (let count = 1; count <= 2; count++)
                 this.insertText(char)
 
-            this.getLine().update()
+            this.getLineModelBuffer().update()
             return
         }
 
@@ -171,27 +169,31 @@ export class TextEditor {
         }
 
         this.insertText(char)
-        this.getLine().update()
+        this.getLineModelBuffer().update()
     }
 
-    static getLine(row = null) {
-        if (!row)
+    static getLineModelBuffer(row = null) {
+        if (row === null)
             row = this.getRowCursorBufferPos()
 
         return this.lineBuffer.filter(line => line.index === row)[0] ?? null
     }
 
-    static deleteLine(row = null) {
-        if (!row)
+    static insertLineModelBuffer(lineModel) {
+        this.lineBuffer.push(lineModel)
+    }
+
+    static deleteLineModelBuffer(row = null) {
+        if (row === null)
             row = this.getRowCursorBufferPos()
 
-        const Line = this.getLine(row)
-
-        if (!Line)
-            return null
-
-        Line.element.remove()
-        this.lineBuffer.splice(row, 1)
+        const Line = this.getLineModelBuffer(row)
+        const indexToRemove = this.lineBuffer.findIndex(line => line.index == Line.index)
+        
+        if (indexToRemove !== -1) {
+            Line.remove()
+            this.lineBuffer.splice(indexToRemove, 1)
+        }
     }
 
     static handleBackSpace() {
@@ -210,7 +212,8 @@ export class TextEditor {
             const startLineData = this.textBuffer.value[selectionStartRow].splice(selectionStartColumn, Infinity)
 
             for (let index = selectionStartRow; index > selectionEndRow; index--) {
-                this.deleteLine(index)
+                this.deleteLineModelBuffer(index)
+                this.decrementLineModelPositions(index)
                 this.textBuffer.value.splice(index, 1)
             }
 
@@ -218,7 +221,7 @@ export class TextEditor {
             this.textBuffer.value[selectionEndRow] = this.textBuffer.value[selectionEndRow].concat(startLineData)
 
             this.setRowBufferPos(selectionEndRow)
-            this.getLine().update()
+            this.getLineModelBuffer().update()
             this.setColumnBufferPos(selectionEndColumn)
 
             Selection.clear()
@@ -229,11 +232,11 @@ export class TextEditor {
 
             if (selectionStartColumn < selectionEndColumn) {
                 this.textBuffer.value[this.getRowCursorBufferPos()].splice(selectionStartColumn, selectionEndColumn - selectionStartColumn)
-                this.getLine().update()
+                this.getLineModelBuffer().update()
                 this.setColumnBufferPos(selectionStartColumn)
             } else {
                 this.textBuffer.value[this.getRowCursorBufferPos()].splice(selectionEndColumn, selectionStartColumn - selectionEndColumn)
-                this.getLine().update()
+                this.getLineModelBuffer().update()
                 this.setColumnBufferPos(selectionEndColumn)
             }
 
@@ -246,7 +249,8 @@ export class TextEditor {
             const startLineData = this.textBuffer.value[selectionEndRow].splice(selectionEndColumn, Infinity)
 
             for (let index = selectionEndRow; index > selectionStartRow; index--) {
-                this.deleteLine(index)
+                this.deleteLineModelBuffer(index)
+                this.decrementLineModelPositions(index)
                 this.textBuffer.value.splice(index, 1)
             }
 
@@ -254,7 +258,7 @@ export class TextEditor {
             this.textBuffer.value[selectionStartRow] = this.textBuffer.value[selectionStartRow].concat(startLineData)
 
             this.setRowBufferPos(selectionStartRow)
-            this.getLine().update()
+            this.getLineModelBuffer().update()
             this.setColumnBufferPos(selectionStartColumn)
 
             Selection.clear()
@@ -263,45 +267,78 @@ export class TextEditor {
 
         if (this.getRowCursorBufferPos() > 0 && this.getColumnCursorBufferPos() === 0) {
             const deletedLine = this.textBuffer.value.splice(this.getRowCursorBufferPos(), 1)[0]
+            this.getLineModelBuffer().update()
 
-            this.deleteLine()
-
+            this.deleteLineModelBuffer()
             this.decrementRowBufferPos()
             this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
-
+            
             this.textBuffer.value[this.getRowCursorBufferPos()] = this.textBuffer.value[this.getRowCursorBufferPos()].concat(deletedLine)
 
-            this.getLine().update()
+            this.getLineModelBuffer().update()
+            this.decrementLineModelPositions()
             return
         }
-
 
         if (this.getColumnCursorBufferPos() < this.textBuffer.value[this.getRowCursorBufferPos()].length) {
             this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos() - 1, 1)
             this.decrementColumnBufferPos()
-            this.getLine().update()
+            this.getLineModelBuffer().update()
         } else {
             this.textBuffer.value[this.getRowCursorBufferPos()].pop()
             this.decrementColumnBufferPos()
-            this.getLine().update()
+            this.getLineModelBuffer().update()
         }
     }
 
     static insertLine() {
-        const oldLine = this.getLine()
+        const oldLine = this.getLineModelBuffer()
         const currentDataToConcat = this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), Infinity)
         oldLine.update()
 
         this.textBuffer.value.splice(this.getRowCursorBufferPos() + 1, 0, currentDataToConcat)
 
+        
         const newLineBuffer = this.textBuffer.value[this.getRowCursorBufferPos() + 1]
         const newLineModel = new LineModel(newLineBuffer, this.getRowCursorBufferPos() + 1)
+        
+        newLineModel.insertAfter(oldLine)
 
-        oldLine.element.parentElement.insertBefore(newLineModel.element, oldLine.element.nextElementSibling)
-        this.lineBuffer.splice(this.getRowCursorBufferPos() + 1, 0, newLineModel)
+        this.incrementLineModelPositions()
+        this.insertLineModelBuffer(newLineModel)
 
         this.incrementRowBufferPos()
         this.setColumnBufferPos(0)
+    }
+
+    static incrementLineModelPositions(indexToStart = null) {
+        this.lineBuffer
+            .filter(line => line.index > (indexToStart ?? this.getRowCursorBufferPos()))
+            .forEach(line => {
+                const newBufferRow = Number(line.element.getAttribute('buffer-row')) + 1
+                line.index = newBufferRow
+
+                line.element.setAttribute('buffer-row', newBufferRow)
+                line.element.style.top = `${line.element.offsetTop + this.LINE_HEIGHT}px`
+
+                line.lineCountElement.style.top = `${line.lineCountElement.offsetTop + this.LINE_HEIGHT}px`
+                line.lineCountElement.innerText = line.index + 1
+            })
+    }
+
+    static decrementLineModelPositions(indexToStart = null) {
+        this.lineBuffer
+            .filter(line => line.index > (indexToStart ?? this.getRowCursorBufferPos()))
+            .forEach(line => {
+                const newBufferRow = Number(line.element.getAttribute('buffer-row')) - 1
+                line.index = newBufferRow
+
+                line.element.setAttribute('buffer-row', newBufferRow)
+                line.element.style.top = `${line.element.offsetTop - this.LINE_HEIGHT}px`
+
+                line.lineCountElement.style.top = `${line.lineCountElement.offsetTop - this.LINE_HEIGHT}px`
+                line.lineCountElement.innerText = line.index + 1
+            })
     }
 
     static insertText(text) {
@@ -322,7 +359,7 @@ export class TextEditor {
             if (newBuffer[index + 1])
                 this.insertLine()
             else
-                this.getLine().update()
+                this.getLineModelBuffer().update()
 
         })
 
@@ -446,26 +483,25 @@ export class TextEditor {
     }
 
     static renderContent() {
-        const { start, end } = this.getViewPortRange()
+        const { end } = this.getViewPortRange()
 
         this.editorElement.innerHTML = ''
         this.editorLinesElement.innerHTML = ''
         this.lineBuffer = []
 
-        for (let index = start; index <= end; index++) {
+        for (let index = 0; index <= end; index++) {
             const row = this.textBuffer.value[index]
             const Line = new LineModel(row, index)
 
             this.lineBuffer.push(Line)
-            this.editorLinesElement.appendChild(Line.lineCountElement)
             this.editorElement.appendChild(Line.element)
+            this.editorLinesElement.appendChild(Line.lineCountElement)
         }
     }
 
     static getViewPortRange() {
-        const bufferOffset = 0 // load more items to scroll look smoother
-        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT) - bufferOffset)
-        const lastLineOffset = Math.min(this.textBuffer.value.length - 1, Math.floor((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT) + bufferOffset)
+        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT))
+        const lastLineOffset = Math.min(this.textBuffer.value.length - 1, Math.floor((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT))
 
         return { start: firstLineOffset, end: lastLineOffset }
     }

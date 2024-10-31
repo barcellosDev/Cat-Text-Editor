@@ -17,12 +17,33 @@ export class LineModel {
         this.lineCountElement = this.buildLineCount()
     }
 
-    removeSelected() {
-        this.element.classList.remove('line-selected')
-        this.lineCountElement.classList.remove('line-count-selected')
+    insertAfter(lineModel = null) {
+        TextEditor.editorElement.insertBefore(this.element, lineModel?.element?.nextElementSibling)
+        TextEditor.editorLinesElement.insertBefore(this.lineCountElement, lineModel?.lineCountElement?.nextElementSibling)
+    }
+
+    insertBefore(lineModel) {
+        if (!lineModel) {
+            TextEditor.editorElement.insertBefore(this.element, TextEditor.editorElement.firstElementChild)
+            TextEditor.editorLinesElement.insertBefore(this.lineCountElement, TextEditor.editorLinesElement.firstElementChild)
+        } else {
+            TextEditor.editorElement.insertBefore(this.element, lineModel.element)
+            TextEditor.editorLinesElement.insertBefore(this.lineCountElement, lineModel.lineCountElement)
+        }
+    }
+
+    remove() {
+        this.element.remove()
+        this.lineCountElement.remove()
     }
 
     setSelected() {
+        const currentLineSelected = TextEditor.editorElement.querySelector('.line-selected')
+        currentLineSelected?.classList?.remove?.('line-selected')
+
+        const currentLineCountSelected = TextEditor.editorLinesElement.querySelector('.line-count-selected')
+        currentLineCountSelected?.classList?.remove?.('line-count-selected')
+
         this.element.classList.add('line-selected')
         this.lineCountElement.classList.add('line-count-selected')
     }
@@ -31,14 +52,12 @@ export class LineModel {
         if (!this.element.firstElementChild)
             throw new Error()
 
-        if (!this.row)
-            this.row = TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos()]
+        const textBufferRowData = TextEditor.textBuffer.value[this.index]
 
         this.element.firstElementChild.remove()
-        this.element.appendChild(this.buildRootSpan(this.row))
+        this.element.appendChild(this.buildRootSpan(textBufferRowData))
 
         const store = useFilesStore()
-
         store.files[store.selectedFileIndex].changed = true
     }
 
@@ -57,7 +76,7 @@ export class LineModel {
         divLine.style.lineHeight = `${TextEditor.LINE_HEIGHT}px`
         divLine.className = `line`
         divLine.style.top = `${this.index * TextEditor.LINE_HEIGHT}px`
-        
+        divLine.setAttribute('buffer-row', this.index)
 
         const spanRoot = this.buildRootSpan(this.row)
         divLine.appendChild(spanRoot)
@@ -65,13 +84,13 @@ export class LineModel {
         return divLine
     }
 
-    buildRootSpan() {
+    buildRootSpan(data) {
         const themesStore = useThemesStore()
         const spanRoot = document.createElement('span')
 
         spanRoot.className = 'root'
 
-        const rowText = this.row.join('')
+        const rowText = data.join('')
 
         const highLightedText = themesStore.highlightCode(rowText)
         const parsedHtml = (new DOMParser()).parseFromString(highLightedText, 'text/html')

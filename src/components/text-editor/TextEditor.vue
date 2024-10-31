@@ -5,6 +5,7 @@ import EditorTabs from '../EditorTabs.vue';
 import { TextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
 import { Selection } from "./selection";
+import { LineModel } from "./line-model"
 
 
 
@@ -20,7 +21,7 @@ let selectionsArea
 var timeoutHandlerToSaveFileOnMemory
 var canEnterSelectionChange = true
 
-onMounted(() => {    
+onMounted(() => {
 
     selectionsArea = document.getElementById('selections')
     textEditorMainContainer = document.getElementById('text-editor-main-container')
@@ -61,7 +62,7 @@ onMounted(() => {
             })
         }
 
-        
+
     }
 
     document.onselectionchange = () => {
@@ -109,6 +110,8 @@ onMounted(() => {
 
         setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
 
+        TextEditor.getLineModelBuffer().setSelected()
+
         Selection.setStart({
             row: TextEditor.getRowCursorBufferPos(),
             column: TextEditor.getColumnCursorBufferPos()
@@ -131,6 +134,8 @@ onMounted(() => {
 
             setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
 
+            TextEditor.getLineModelBuffer().setSelected()
+
             Selection.setEnd({
                 row: TextEditor.getRowCursorBufferPos(),
                 column: TextEditor.getColumnCursorBufferPos()
@@ -151,18 +156,54 @@ onMounted(() => {
 
 
 
-    let lastScrollTop = null
+    let lastScrollTop = 0
 
     textEditorMainContainer.onscroll = () => {
         window.requestAnimationFrame(() => {
-
             if (textEditorMainContainer.scrollTop === lastScrollTop)
                 return
 
             const deadLineToLoadNewBuffer = ((textEditorMainContainer.scrollHeight - textEditorMainContainer.scrollTop) - textEditorMainContainer.offsetHeight) <= textEditorMainContainer.offsetHeight
-            console.log(deadLineToLoadNewBuffer)
+            const { start, end } = TextEditor.getViewPortRange()
 
-            TextEditor.renderContent()
+            if (textEditorMainContainer.scrollTop < lastScrollTop) {
+                if (!editor.querySelector(`.line[buffer-row="${start}"]`)) {
+                    const firstLineElement = editor.querySelector(`.line:first-child`)
+                    const firstLineModel = TextEditor.getLineModelBuffer(firstLineElement.getAttribute('buffer-row'))
+
+                    const row = TextEditor.textBuffer.value[start]
+                    const Line = new LineModel(row, start)
+
+                    Line.insertBefore(firstLineModel)
+                    TextEditor.lineBuffer.push(Line)
+                }
+
+                const lastLineVp = editor.querySelector(`.line[buffer-row="${end}"]`)
+
+                if (lastLineVp) {
+                    TextEditor.deleteLineModelBuffer(end)
+                }
+            }
+
+            if (textEditorMainContainer.scrollTop > lastScrollTop) {
+                if (!editor.querySelector(`.line[buffer-row="${end}"]`)) {
+                    const lastLineElement = editor.querySelector(`.line:last-child`)
+                    const lastLineModel = TextEditor.getLineModelBuffer(lastLineElement.getAttribute('buffer-row'))
+
+                    const row = TextEditor.textBuffer.value[end]
+                    const Line = new LineModel(row, end)
+
+                    Line.insertAfter(lastLineModel)
+                    TextEditor.lineBuffer.push(Line)
+                }
+
+                const firstVpLine = editor.querySelector(`.line[buffer-row="${start}"]`)
+
+                if (firstVpLine) {
+                    TextEditor.deleteLineModelBuffer(start)
+                }
+            }
+
 
             lastScrollTop = textEditorMainContainer.scrollTop
         })
@@ -257,9 +298,7 @@ function getLineElementFrom(element) {
                 </div>
 
                 <div cat-text-editor id="text-editor-content">
-                    <div class="line line-selected">
-                        <span class="root"></span>
-                    </div>
+
                 </div>
             </div>
         </div>
@@ -313,7 +352,6 @@ function getLineElementFrom(element) {
 
 <style>
 .selected-text {
-    padding: 1px;
     border-radius: 5px;
     background-color: #569cd64b;
     position: absolute;
