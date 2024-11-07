@@ -16,9 +16,13 @@ function loadConfigurations() {
     fileExplorerSideBar.value = false
 }
 
-onUpdated(() => {
+function updateUi() {
     window.dispatchEvent(new Event('resize'))
     window.dispatchEvent(new Event('ui-change'))
+}
+
+onUpdated(() => {
+    updateUi()
 })
 
 </script>
@@ -34,9 +38,9 @@ onUpdated(() => {
             </div>
         </div>
 
-        <div v-if="fileExplorerSideBar || configSideBar" id="left-side-bar">
-            <FileExplorer v-if="fileExplorerSideBar"></FileExplorer>
-            <Configuration v-if="configSideBar"></Configuration>
+        <div v-show="fileExplorerSideBar || configSideBar" id="left-side-bar">
+            <FileExplorer @click="updateUi" v-show="fileExplorerSideBar"></FileExplorer>
+            <Configuration @click="updateUi" v-show="configSideBar"></Configuration>
         </div>
     </div>
 </template>

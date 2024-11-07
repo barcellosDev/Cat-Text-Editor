@@ -57,6 +57,7 @@ export class TextEditor {
         },
         8: () => { // backspace
             this.handleBackSpace()
+            this.renderContent()
             this.getLineModelBuffer().setSelected()
         },
         35: () => { // end
@@ -482,14 +483,14 @@ export class TextEditor {
         return Math.round((columnIndex ?? this.getColumnCursorBufferPos()) * this.fontWidth)
     }
 
-    static renderContent() {
-        const { end } = this.getViewPortRange()
+    static renderContent() {        
+        const { start, end } = this.getViewPortRange()
 
         this.editorElement.innerHTML = ''
         this.editorLinesElement.innerHTML = ''
         this.lineBuffer = []
 
-        for (let index = 0; index <= end; index++) {
+        for (let index = start; index <= end; index++) {
             const row = this.textBuffer.value[index]
             const Line = new LineModel(row, index)
 
@@ -500,8 +501,9 @@ export class TextEditor {
     }
 
     static getViewPortRange() {
-        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT))
-        const lastLineOffset = Math.min(this.textBuffer.value.length - 1, Math.floor((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT))
+        const EXTRA_BUFFER_ROW_OFFSET = 3
+        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT) - EXTRA_BUFFER_ROW_OFFSET)
+        const lastLineOffset = Math.min(this.textBuffer.value.length - 1, Math.ceil((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT) + EXTRA_BUFFER_ROW_OFFSET)
 
         return { start: firstLineOffset, end: lastLineOffset }
     }

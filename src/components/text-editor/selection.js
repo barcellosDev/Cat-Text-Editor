@@ -44,6 +44,56 @@ export class Selection {
         if (this.isCollapsed())
             return
 
+        // forward selection (normal)
+        if (this.getStart()[0] < this.getEnd()[0]) {
+            for (let row = this.getStart()[0]; row < this.getEnd()[0]; row++) {
+
+                let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
+                let newLeft = 0
+
+                const lineLength = TextEditor.textBuffer.value[row].length
+                let newWidth = lineLength === 0 ? TextEditor.fontWidth : TextEditor.getBufferColumnToScreenX(lineLength)
+
+                const newTop = TextEditor.getBufferLineToScreenY(row)
+
+                if (row === this.getStart()[0]) {
+                    newLeft = TextEditor.getBufferColumnToScreenX(this.getStart()[1])
+                    newWidth = newWidth - newLeft
+                }
+
+                if (!selectionDiv) {
+                    selectionDiv = this.buildSelectionWrapper(newLeft, newWidth, newTop)
+                    this.selectionsDivArea.appendChild(selectionDiv)
+                }
+
+                this.updateSelectionWrapper(selectionDiv, { left: newLeft, width: newWidth })
+            }
+        }
+
+        // backward selection
+        if (this.isReversed()) {
+            for (let row = this.getStart()[0]; row > this.getEnd()[0]; row--) {
+                let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
+
+                const lineLength = TextEditor.textBuffer.value[row].length
+                let newLeft = 0
+                let newWidth = lineLength === 0 ? TextEditor.fontWidth : TextEditor.getBufferColumnToScreenX(lineLength)
+                const newTop = TextEditor.getBufferLineToScreenY(row)
+
+                if (row === this.getStart()[0]) {
+                    newWidth = TextEditor.getBufferColumnToScreenX(this.getStart()[1])
+                }
+
+                if (!selectionDiv) {
+                    selectionDiv = this.buildSelectionWrapper(newLeft, newWidth, newTop)
+                    this.selectionsDivArea.appendChild(selectionDiv)
+                }
+
+                this.updateSelectionWrapper(selectionDiv, { left: newLeft, width: newWidth })
+            }
+        }
+
+
         let left = TextEditor.getBufferColumnToScreenX(this.getStart()[1])
         let right = TextEditor.getBufferColumnToScreenX(this.getEnd()[1])
         let width = right - left
@@ -54,54 +104,32 @@ export class Selection {
             width = Math.abs(width)
         }
 
+        let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${TextEditor.getRowCursorBufferPos()}"]`)
+
+        if (this.isMultiLine()) {
+            left = 0
+            width = right
+
+            if (this.isReversed()) {
+                left = TextEditor.getBufferColumnToScreenX()
+                width = TextEditor.getBufferColumnToScreenX(TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos()].length) - left
+            }
+        }
+
+        // console.log("selectionDiv: ")
+        // console.log(selectionDiv)
         // console.log("left: " + left)
-        // console.log("right: " +right)
-        // console.log("width: " +width)
-        // console.log("top: " +top)
-        // console.log(this.isReversed())
+        // console.log("right: " + right)
+        // console.log("width: " + width)
+        // console.log("top: " + top)
+        // console.log("isReversed: " + this.isReversed())
 
-
-
-        // forward selection (normal)
-        if (this.getStart()[0] < this.getEnd()[0]) {
-            for (let row = this.getStart()[0]; row <= this.getEnd()[0]; row++) {
-                let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
-
-                const newLeft = 0
-                const newWidth = TextEditor.getBufferColumnToScreenX(TextEditor.textBuffer.value[row].length)
-
-                if (!selectionDiv) {
-                    selectionDiv = this.buildSelectionWrapper(newLeft, newWidth, top)
-                    this.selectionsDivArea.appendChild(selectionDiv)
-                }
-            }
+        if (!selectionDiv) {
+            selectionDiv = this.buildSelectionWrapper(left, width, top)
+            this.selectionsDivArea.appendChild(selectionDiv)
         }
 
-        // backward selection
-        if (this.getStart()[0] > this.getEnd()[0]) {
-            for (let row = this.getStart()[0]; row >= this.getEnd()[0]; row--) {
-                let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
-
-                const newLeft = 0
-                const newWidth = TextEditor.getBufferColumnToScreenX(TextEditor.textBuffer.value[row].length)
-
-                if (!selectionDiv) {
-                    selectionDiv = this.buildSelectionWrapper(newLeft, newWidth, top)
-                    this.selectionsDivArea.appendChild(selectionDiv)
-                }
-            }
-        }
-
-        if (this.getStart()[0] == this.getEnd()[0]) {
-            let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${this.getStart()[0]}"]`)
-
-            if (!selectionDiv) {
-                selectionDiv = this.buildSelectionWrapper(left, width, top)
-                this.selectionsDivArea.appendChild(selectionDiv)
-            }
-
-            this.updateSelectionWrapper(selectionDiv, left, width, top)
-        }
+        this.updateSelectionWrapper(selectionDiv, { left, width, top })
 
         this.selectionsDivArea
             .querySelectorAll(`[buffer-row="${this.getEnd()[0]}"] ~ [buffer-row]`)
@@ -117,7 +145,6 @@ export class Selection {
         textSelectionDiv.style.width = `${width}px`
         textSelectionDiv.style.height = `${TextEditor.LINE_HEIGHT}px`
         textSelectionDiv.style.top = `${top}px`
-        textSelectionDiv.style.minWidth = `${TextEditor.fontWidth}px`
         textSelectionDiv.setAttribute('buffer-row', TextEditor.getScreenYToBuffer(top))
 
         if (left === 0) {
@@ -128,10 +155,19 @@ export class Selection {
         return textSelectionDiv
     }
 
-    static updateSelectionWrapper(textSelectionDiv, left, width, top) {
-        textSelectionDiv.style.left = `${left}px`
-        textSelectionDiv.style.width = `${width}px`
-        textSelectionDiv.style.top = `${top}px`
+    static updateSelectionWrapper(textSelectionDiv, {
+        left = null,
+        width = null,
+        top = null
+    }) {
+        if (left !== null)
+            textSelectionDiv.style.left = `${left}px`
+
+        if (width !== null)
+            textSelectionDiv.style.width = `${width}px`
+
+        if (top !== null)
+            textSelectionDiv.style.top = `${top}px`
     }
 
     static isReversed() {
@@ -146,6 +182,10 @@ export class Selection {
             this.getStart()[0] === this.getEnd()[0] &&
             this.getStart()[1] === this.getEnd()[1]
         )
+    }
+
+    static isMultiLine() {
+        return Math.abs(this.getStart()[0] - this.getEnd()[0]) > 0
     }
 
     static clear() {

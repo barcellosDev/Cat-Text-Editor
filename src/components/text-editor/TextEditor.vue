@@ -47,22 +47,20 @@ onMounted(() => {
             column: TextEditor.getColumnCursorBufferPos()
         })
 
-        // CODE TO HANDLE REVERSED SELECTIONS
-        // REFACTOR TO A CLASS SELECTION WITH isReversed property
-        if (Selection.isReversed()) {
-            const selection = window.getSelection()
-            const endBufferY = TextEditor.getScreenYToBuffer(getOffsetTopFromElement(ev.target))
-            const startBufferX = TextEditor.getScreenXToBuffer(selection.anchorNode.parentElement.offsetLeft + (selection.anchorOffset * TextEditor.fontWidth))
-            const endBufferX = TextEditor.getScreenXToBuffer(selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth))
+        // if (Selection.isReversed()) {
+        //     const selection = window.getSelection()
+        //     const endBufferY = TextEditor.getScreenYToBuffer(getOffsetTopFromElement(ev.target))
+        //     const startBufferX = TextEditor.getScreenXToBuffer(selection.anchorNode.parentElement.offsetLeft + (selection.anchorOffset * TextEditor.fontWidth))
+        //     const endBufferX = TextEditor.getScreenXToBuffer(selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth))
 
-            Selection.setStart({ column: startBufferX })
-            Selection.setEnd({
-                row: endBufferY,
-                column: endBufferX
-            })
-        }
+        //     Selection.setStart({ column: startBufferX })
+        //     Selection.setEnd({
+        //         row: endBufferY,
+        //         column: endBufferX
+        //     })
+        // }
 
-
+        TextEditor.getLineModelBuffer().setSelected()
     }
 
     document.onselectionchange = () => {
@@ -74,12 +72,11 @@ onMounted(() => {
         if (!selection.isCollapsed && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0)
             const rect = range.getBoundingClientRect()
-
             const selectedTextLeftOffset = rect.left - editorDomRect.left + textEditorMainContainer.scrollLeft
             const selectedTextRightOffset = rect.right - editorDomRect.left + textEditorMainContainer.scrollLeft
 
             Selection.setStart({
-                row: TextEditor.getRowCursorBufferPos(),
+                row: TextEditor.getScreenYToBuffer(rect.top - editorDomRect.top + textEditorMainContainer.scrollTop),
                 column: Math.floor(selectedTextLeftOffset / TextEditor.fontWidth)
             })
 
@@ -97,7 +94,7 @@ onMounted(() => {
                 column: TextEditor.getColumnCursorBufferPos()
             })
 
-
+            TextEditor.getLineModelBuffer().setSelected()
         }
 
     }
@@ -117,19 +114,17 @@ onMounted(() => {
             column: TextEditor.getColumnCursorBufferPos()
         })
 
-        const selection = window.getSelection()
 
         editor.onmousemove = (ev) => {
+            const selection = window.getSelection()
             canEnterSelectionChange = false
-
-            if (!editor.contains(selection.focusNode)) {
-                return
-            }
 
             lineOffsetY = getOffsetTopFromElement(ev.target)
 
-            if (!selection.focusNode?.classList?.contains('line')) {
+            if (selection.focusNode && !selection.focusNode?.classList?.contains('line')) {
                 mouseOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth)
+            } else if (!selection.focusNode) {
+                mouseOffsetX = ev.offsetX
             }
 
             setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
@@ -157,56 +152,63 @@ onMounted(() => {
 
 
     let lastScrollTop = 0
+    let isRendering = false
 
     textEditorMainContainer.onscroll = () => {
-        window.requestAnimationFrame(() => {
-            if (textEditorMainContainer.scrollTop === lastScrollTop)
-                return
 
-            const deadLineToLoadNewBuffer = ((textEditorMainContainer.scrollHeight - textEditorMainContainer.scrollTop) - textEditorMainContainer.offsetHeight) <= textEditorMainContainer.offsetHeight
-            const { start, end } = TextEditor.getViewPortRange()
-
-            if (textEditorMainContainer.scrollTop < lastScrollTop) {
-                if (!editor.querySelector(`.line[buffer-row="${start}"]`)) {
-                    const firstLineElement = editor.querySelector(`.line:first-child`)
-                    const firstLineModel = TextEditor.getLineModelBuffer(firstLineElement.getAttribute('buffer-row'))
-
-                    const row = TextEditor.textBuffer.value[start]
-                    const Line = new LineModel(row, start)
-
-                    Line.insertBefore(firstLineModel)
-                    TextEditor.lineBuffer.push(Line)
+        if (!isRendering) {
+            window.requestAnimationFrame(() => {
+                if (textEditorMainContainer.scrollTop === lastScrollTop)
+                    return
+    
+                const deadLineToLoadNewBuffer = ((textEditorMainContainer.scrollHeight - textEditorMainContainer.scrollTop) - textEditorMainContainer.offsetHeight) <= textEditorMainContainer.offsetHeight
+                const { start, end } = TextEditor.getViewPortRange()
+    
+                if (textEditorMainContainer.scrollTop < lastScrollTop) {
+                    if (!editor.querySelector(`.line[buffer-row="${start}"]`)) {
+                        const firstLineElement = editor.querySelector(`.line:first-child`)
+                        const firstLineModel = TextEditor.getLineModelBuffer(firstLineElement.getAttribute('buffer-row'))
+    
+                        const row = TextEditor.textBuffer.value[start]
+                        const Line = new LineModel(row, start)
+    
+                        Line.insertBefore(firstLineModel)
+                        TextEditor.lineBuffer.push(Line)
+                    }
+    
+                    const lastLineVp = editor.querySelector(`.line[buffer-row="${end}"]`)
+    
+                    if (lastLineVp) {
+                        TextEditor.deleteLineModelBuffer(end)
+                    }
                 }
-
-                const lastLineVp = editor.querySelector(`.line[buffer-row="${end}"]`)
-
-                if (lastLineVp) {
-                    TextEditor.deleteLineModelBuffer(end)
+    
+                if (textEditorMainContainer.scrollTop > lastScrollTop) {
+                    if (!editor.querySelector(`.line[buffer-row="${end}"]`)) {
+                        const lastLineElement = editor.querySelector(`.line:last-child`)
+                        const lastLineModel = TextEditor.getLineModelBuffer(lastLineElement.getAttribute('buffer-row'))
+                        
+                        const row = TextEditor.textBuffer.value[end]
+                        const Line = new LineModel(row, end)
+    
+                        Line.insertAfter(lastLineModel)
+                        TextEditor.lineBuffer.push(Line)
+                    }
+    
+                    const firstVpLine = editor.querySelector(`.line[buffer-row="${start}"]`)
+    
+                    if (firstVpLine) {
+                        TextEditor.deleteLineModelBuffer(start)
+                    }
                 }
-            }
+    
+                lastScrollTop = textEditorMainContainer.scrollTop
+                isRendering = false
+            })
 
-            if (textEditorMainContainer.scrollTop > lastScrollTop) {
-                if (!editor.querySelector(`.line[buffer-row="${end}"]`)) {
-                    const lastLineElement = editor.querySelector(`.line:last-child`)
-                    const lastLineModel = TextEditor.getLineModelBuffer(lastLineElement.getAttribute('buffer-row'))
+        }
 
-                    const row = TextEditor.textBuffer.value[end]
-                    const Line = new LineModel(row, end)
-
-                    Line.insertAfter(lastLineModel)
-                    TextEditor.lineBuffer.push(Line)
-                }
-
-                const firstVpLine = editor.querySelector(`.line[buffer-row="${start}"]`)
-
-                if (firstVpLine) {
-                    TextEditor.deleteLineModelBuffer(start)
-                }
-            }
-
-
-            lastScrollTop = textEditorMainContainer.scrollTop
-        })
+        isRendering = true
     }
 
     window.addEventListener('resize', setMainEditorContainerHeight)
