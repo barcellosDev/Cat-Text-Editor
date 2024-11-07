@@ -47,19 +47,6 @@ onMounted(() => {
             column: TextEditor.getColumnCursorBufferPos()
         })
 
-        // if (Selection.isReversed()) {
-        //     const selection = window.getSelection()
-        //     const endBufferY = TextEditor.getScreenYToBuffer(getOffsetTopFromElement(ev.target))
-        //     const startBufferX = TextEditor.getScreenXToBuffer(selection.anchorNode.parentElement.offsetLeft + (selection.anchorOffset * TextEditor.fontWidth))
-        //     const endBufferX = TextEditor.getScreenXToBuffer(selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * TextEditor.fontWidth))
-
-        //     Selection.setStart({ column: startBufferX })
-        //     Selection.setEnd({
-        //         row: endBufferY,
-        //         column: endBufferX
-        //     })
-        // }
-
         TextEditor.getLineModelBuffer().setSelected()
     }
 

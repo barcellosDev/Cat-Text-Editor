@@ -115,15 +115,7 @@ export class Selection {
                 width = TextEditor.getBufferColumnToScreenX(TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos()].length) - left
             }
         }
-
-        // console.log("selectionDiv: ")
-        // console.log(selectionDiv)
-        // console.log("left: " + left)
-        // console.log("right: " + right)
-        // console.log("width: " + width)
-        // console.log("top: " + top)
-        // console.log("isReversed: " + this.isReversed())
-
+        
         if (!selectionDiv) {
             selectionDiv = this.buildSelectionWrapper(left, width, top)
             this.selectionsDivArea.appendChild(selectionDiv)
@@ -173,7 +165,7 @@ export class Selection {
     static isReversed() {
         return (
             this.getStart()[0] > this.getEnd()[0] ||
-            this.getStart()[1] > this.getEnd()[1]
+            (this.getStart()[0] === this.getEnd()[0] && this.getStart()[1] > this.getEnd()[1])
         )
     }
 
