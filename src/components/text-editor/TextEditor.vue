@@ -82,8 +82,15 @@ onMounted(() => {
             let newOffsetX = Math.floor(selectedTextRightOffset)
 
             if (range.endContainer?.classList?.contains('line')) {
-                TextEditor.setRowBufferPos( Selection.getStart()[0] + 1 )
-                newOffsetX = 0 // first offset of the next line
+                const nextRowBufferPosBasedOnInitialPos = Selection.getStart()[0] + 1
+
+                if (TextEditor.textBuffer.value[nextRowBufferPosBasedOnInitialPos]) {
+                    TextEditor.setRowBufferPos(nextRowBufferPosBasedOnInitialPos)
+                    newOffsetX = 0 // first offset of the next line
+                } else {
+                    // if its the last line, select the current line
+                    newOffsetX = TextEditor.getBufferColumnToScreenX(Infinity)
+                }
             }
 
             TextEditor.setColumnBufferPos(TextEditor.getScreenXToBuffer(newOffsetX))

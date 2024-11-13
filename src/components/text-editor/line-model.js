@@ -54,6 +54,11 @@ export class LineModel {
 
         const textBufferRowData = TextEditor.textBuffer.value[this.index]
 
+        // trying to update an line that doesnt exists
+        // happens in case of deleting the last line (hence trying to update the line after it)
+        if (!textBufferRowData)
+            return
+
         this.element.firstElementChild.remove()
         this.element.appendChild(this.buildRootSpan(textBufferRowData))
 
