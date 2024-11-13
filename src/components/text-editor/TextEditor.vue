@@ -70,7 +70,7 @@ onMounted(() => {
             let newOffsetX = Math.floor(selectedTextRightOffset)
 
             if (range.endContainer?.classList?.contains('line')) {
-                TextEditor.setRowBufferPos(TextEditor.getScreenYToBuffer(range.endContainer.offsetTop))
+                TextEditor.setRowBufferPos( Selection.getStart()[0] + 1 )
                 newOffsetX = 0 // first offset of the next line
             }
 
@@ -140,62 +140,80 @@ onMounted(() => {
 
     let lastScrollTop = 0
     let isRendering = false
+    let isTicking = false
 
     textEditorMainContainer.onscroll = () => {
 
-        if (!isRendering) {
+        if (!isTicking) {
             window.requestAnimationFrame(() => {
-                if (textEditorMainContainer.scrollTop === lastScrollTop)
+                if (isRendering || textEditorMainContainer.scrollTop === lastScrollTop)
                     return
-    
-                const deadLineToLoadNewBuffer = ((textEditorMainContainer.scrollHeight - textEditorMainContainer.scrollTop) - textEditorMainContainer.offsetHeight) <= textEditorMainContainer.offsetHeight
+
                 const { start, end } = TextEditor.getViewPortRange()
-    
+
+                const firstLineBufferRow = TextEditor.getMinRenderedLine()
+                const lastLineBufferRow = TextEditor.getMaxRenderedLine()
+
                 if (textEditorMainContainer.scrollTop < lastScrollTop) {
-                    if (!editor.querySelector(`.line[buffer-row="${start}"]`)) {
-                        const firstLineElement = editor.querySelector(`.line:first-child`)
-                        const firstLineModel = TextEditor.getLineModelBuffer(firstLineElement.getAttribute('buffer-row'))
+                    if (Math.abs(firstLineBufferRow - start) <= 5) {
+                        isRendering = true
     
-                        const row = TextEditor.textBuffer.value[start]
-                        const Line = new LineModel(row, start)
+                        const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
+                        const firstLineModel = TextEditor.getLineModelBuffer(firstLineBufferRow)
     
-                        Line.insertBefore(firstLineModel)
-                        TextEditor.lineBuffer.push(Line)
-                    }
+                        for (let index = Math.max(0, firstLineBufferRow - 1); index >= extraStart; index--) {
+                            if (editor.querySelector(`.line[buffer-row="${index}"]`))
+                                continue
     
-                    const lastLineVp = editor.querySelector(`.line[buffer-row="${end}"]`)
+                            const row = TextEditor.textBuffer.value[index]
+                            const Line = new LineModel(row, index)
+        
+                            Line.insertBefore(firstLineModel)
+                            TextEditor.lineBuffer.push(Line)
+                        }
     
-                    if (lastLineVp) {
-                        TextEditor.deleteLineModelBuffer(end)
+                        for (let index = lastLineBufferRow; index > extraEnd; index--) {
+                            TextEditor.deleteLineModelBuffer(index)
+                        }
+
+                        isRendering = false
                     }
                 }
-    
+
                 if (textEditorMainContainer.scrollTop > lastScrollTop) {
-                    if (!editor.querySelector(`.line[buffer-row="${end}"]`)) {
-                        const lastLineElement = editor.querySelector(`.line:last-child`)
-                        const lastLineModel = TextEditor.getLineModelBuffer(lastLineElement.getAttribute('buffer-row'))
+                    if (lastLineBufferRow - end <= 5) {
+                        isRendering = true
+    
+                        const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
+                        const lastLineModel = TextEditor.getLineModelBuffer(lastLineBufferRow)
+    
+                        for (let index = Math.min(TextEditor.textBuffer.value.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
+                            if (editor.querySelector(`.line[buffer-row="${index}"]`))
+                                continue
+    
+                            const row = TextEditor.textBuffer.value[index]
+                            const Line = new LineModel(row, index)
+        
+                            Line.insertAfter(lastLineModel)
+                            TextEditor.lineBuffer.push(Line)
+                        }
+    
                         
-                        const row = TextEditor.textBuffer.value[end]
-                        const Line = new LineModel(row, end)
-    
-                        Line.insertAfter(lastLineModel)
-                        TextEditor.lineBuffer.push(Line)
-                    }
-    
-                    const firstVpLine = editor.querySelector(`.line[buffer-row="${start}"]`)
-    
-                    if (firstVpLine) {
-                        TextEditor.deleteLineModelBuffer(start)
+                        for (let index = firstLineBufferRow; index < extraStart; index++) {
+                            TextEditor.deleteLineModelBuffer(index)
+                        }
+
+                        isRendering = false
                     }
                 }
-    
+
                 lastScrollTop = textEditorMainContainer.scrollTop
-                isRendering = false
+                isTicking = false
             })
 
         }
 
-        isRendering = true
+        isTicking = true
     }
 
     window.addEventListener('resize', setMainEditorContainerHeight)

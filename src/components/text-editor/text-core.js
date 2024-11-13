@@ -11,6 +11,7 @@ export class TextEditor {
 
     static LINE_HEIGHT = 19
     static TAB_VALUE = '  '
+    static EXTRA_BUFFER_ROW_OFFSET = 30
 
     static config = {
         fontSize: 16,
@@ -57,7 +58,14 @@ export class TextEditor {
         },
         8: () => { // backspace
             this.handleBackSpace()
-            this.renderContent()
+
+            const lastLineBufferRow = this.getMaxRenderedLine()
+            const { end } = TextEditor.getViewPortRange()
+
+            if (lastLineBufferRow < end) {
+                this.renderContent()
+            }
+
             this.getLineModelBuffer().setSelected()
         },
         35: () => { // end
@@ -189,12 +197,42 @@ export class TextEditor {
             row = this.getRowCursorBufferPos()
 
         const Line = this.getLineModelBuffer(row)
+
+        if (!Line)
+            return
+
         const indexToRemove = this.lineBuffer.findIndex(line => line.index == Line.index)
         
         if (indexToRemove !== -1) {
             Line.remove()
             this.lineBuffer.splice(indexToRemove, 1)
         }
+    }
+
+    static getMaxRenderedLine() {
+        let max = this.editorElement.querySelector('.line:last-child').getAttribute('buffer-row')
+        
+        for (let index = 0; index < this.editorElement.children.length; index++) {
+            const bufferRow = Number(this.editorElement.children[index].getAttribute('buffer-row'))
+
+            if (bufferRow > max)
+                max = bufferRow
+        }
+
+        return Number(max)
+    }
+
+    static getMinRenderedLine() {
+        let min = this.editorElement.children[0].getAttribute('buffer-row')
+        
+        for (let index = 0; index < this.editorElement.children.length; index++) {
+            const bufferRow = Number(this.editorElement.children[index].getAttribute('buffer-row'))
+
+            if (bufferRow < min)
+                min = bufferRow
+        }
+
+        return Number(min)
     }
 
     static handleBackSpace() {
@@ -483,14 +521,14 @@ export class TextEditor {
         return Math.round((columnIndex ?? this.getColumnCursorBufferPos()) * this.fontWidth)
     }
 
-    static renderContent() {        
-        const { start, end } = this.getViewPortRange()
+    static renderContent() {
+        const { extraStart, extraEnd } = this.getExtraViewPortRange()
 
         this.editorElement.innerHTML = ''
         this.editorLinesElement.innerHTML = ''
         this.lineBuffer = []
 
-        for (let index = start; index <= end; index++) {
+        for (let index = extraStart; index <= extraEnd; index++) {
             const row = this.textBuffer.value[index]
             const Line = new LineModel(row, index)
 
@@ -501,11 +539,19 @@ export class TextEditor {
     }
 
     static getViewPortRange() {
-        const EXTRA_BUFFER_ROW_OFFSET = 3
-        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT) - EXTRA_BUFFER_ROW_OFFSET)
-        const lastLineOffset = Math.min(this.textBuffer.value.length - 1, Math.ceil((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT) + EXTRA_BUFFER_ROW_OFFSET)
+        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT))
+        const lastLineOffset = Math.min(this.textBuffer.value.length - 1, Math.ceil((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT))
 
         return { start: firstLineOffset, end: lastLineOffset }
+    }
+
+    static getExtraViewPortRange() {
+        const { start, end } = this.getViewPortRange()
+
+        const extraStart = Math.max(0, start - this.EXTRA_BUFFER_ROW_OFFSET)
+        const extraEnd = Math.min(this.textBuffer.value.length - 1, end + this.EXTRA_BUFFER_ROW_OFFSET)
+
+        return { extraStart, extraEnd }
     }
 
     static parseText(text) {

@@ -1,14 +1,8 @@
 <script setup>
 import router from '@/router'
 import { useFilesStore } from '@/store/files';
-import { useThemesStore } from '@/store/themes';
-import { onBeforeMount } from 'vue';
 
 const filesStore = useFilesStore()
-
-onBeforeMount(() => {
-    useThemesStore().loadHighlighter()
-})
 
 function openFile() {
     window.electron.onOpenFile()
