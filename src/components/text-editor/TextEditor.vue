@@ -174,7 +174,7 @@ onMounted(() => {
                 const lastLineBufferRow = TextEditor.getMaxRenderedLine()
 
                 if (textEditorMainContainer.scrollTop < lastScrollTop) {
-                    if (Math.abs(firstLineBufferRow - start) <= 5) {
+                    if (firstLineBufferRow - start <= 5) {
                         isRendering = true
     
                         const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
