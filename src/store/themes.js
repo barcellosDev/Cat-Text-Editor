@@ -8,6 +8,8 @@ export const useThemesStore = defineStore('themes', () => {
     const selectedThemeName = 'slack-dark'
     const fileExtensionToLang = {
         '.js': 'javascript',
+        '.mjs': 'javascript',
+        '.vue': 'javascript',
         '.php': 'php',
         '.html': 'html'
     }

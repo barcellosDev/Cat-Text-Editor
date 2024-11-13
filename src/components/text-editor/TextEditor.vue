@@ -62,7 +62,7 @@ onMounted(() => {
 
             let selectedTextLeftOffset = rect.left - editorDomRect.left + textEditorMainContainer.scrollLeft
             let selectedTextRightOffset = rect.right - editorDomRect.left + textEditorMainContainer.scrollLeft
-            let selectedTextTopOffset = rect.top - editorDomRect.top + textEditorMainContainer.scrollTop
+            let selectedTextTopOffset = rect.top - textEditorMainContainer.offsetTop + textEditorMainContainer.scrollTop
 
             // in case of selecting an empty row (the rect.right/left returns 0 (as if the rect was on the initial edge of the div))
             if (selectedTextLeftOffset < 0)
