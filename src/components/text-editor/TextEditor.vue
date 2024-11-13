@@ -59,11 +59,23 @@ onMounted(() => {
         if (!selection.isCollapsed && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0)
             const rect = range.getBoundingClientRect()
-            const selectedTextLeftOffset = rect.left - editorDomRect.left + textEditorMainContainer.scrollLeft
-            const selectedTextRightOffset = rect.right - editorDomRect.left + textEditorMainContainer.scrollLeft
+
+            let selectedTextLeftOffset = rect.left - editorDomRect.left + textEditorMainContainer.scrollLeft
+            let selectedTextRightOffset = rect.right - editorDomRect.left + textEditorMainContainer.scrollLeft
+            let selectedTextTopOffset = rect.top - editorDomRect.top + textEditorMainContainer.scrollTop
+
+            // in case of selecting an empty row (the rect.right/left returns 0 (as if the rect was on the initial edge of the div))
+            if (selectedTextLeftOffset < 0)
+                selectedTextLeftOffset = 0
+
+            if (selectedTextRightOffset < 0)
+                selectedTextRightOffset = 0
+
+            if (rect.width === 0 && rect.top === 0)
+                selectedTextTopOffset = getLineElementFrom(range.startContainer).offsetTop
 
             Selection.setStart({
-                row: TextEditor.getScreenYToBuffer(rect.top - editorDomRect.top + textEditorMainContainer.scrollTop),
+                row: TextEditor.getScreenYToBuffer(selectedTextTopOffset),
                 column: Math.floor(selectedTextLeftOffset / TextEditor.fontWidth)
             })
 
