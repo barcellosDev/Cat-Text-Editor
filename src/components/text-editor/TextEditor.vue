@@ -165,7 +165,7 @@ onMounted(() => {
 
         if (!isTicking) {
             window.requestAnimationFrame(() => {
-                if (isRendering || textEditorMainContainer.scrollTop === lastScrollTop)
+                if (isRendering)
                     return
 
                 const { start, end } = TextEditor.getViewPortRange()
