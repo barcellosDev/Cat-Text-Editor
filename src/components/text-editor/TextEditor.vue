@@ -151,7 +151,8 @@ onMounted(() => {
 
         clearTimeout(timeoutHandlerToSaveFileOnMemory)
         timeoutHandlerToSaveFileOnMemory = setTimeout(() => {
-            filesStore.files[filesStore.selectedFileIndex].text = TextEditor.renderPureText()
+            if (filesStore.files[filesStore.selectedFileIndex].changed)
+                filesStore.files[filesStore.selectedFileIndex].text = TextEditor.renderPureText()
         }, 100)
     }
 
@@ -257,6 +258,8 @@ onMounted(() => {
 
 onUnmounted(() => {
     window.onkeydown = null
+    document.onselectionchange = null
+
     window.removeEventListener('resize', setMainEditorContainerHeight)
     window.removeEventListener('resize', setEditorContainerWidth)
     window.removeEventListener('ui-change', setEditorDomRect)
