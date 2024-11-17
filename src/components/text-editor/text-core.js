@@ -32,25 +32,77 @@ export class TextEditor {
     static lineBuffer = []
 
     static notPrint = {
-        37: () => { // arrowLeft
+        37: (ev) => { // arrowLeft
             this.decrementColumnBufferPos()
+
+            if (ev.shiftKey) {
+                Selection.setEnd({
+                    column: this.getColumnCursorBufferPos(),
+                    row: this.getRowCursorBufferPos()
+                })
+            } else {
+                Selection.clear()
+                Selection.setStart({
+                    column: this.getColumnCursorBufferPos(),
+                    row: this.getRowCursorBufferPos()
+                })
+            }
         },
-        38: () => { // arrowUp
+        38: (ev) => { // arrowUp
             this.decrementRowBufferPos()
             this.getLineModelBuffer().setSelected()
 
             if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length)
                 this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+
+            if (ev.shiftKey) {
+                Selection.setEnd({
+                    row: this.getRowCursorBufferPos(),
+                    column: this.getColumnCursorBufferPos()
+                })
+            } else {
+                Selection.clear()
+                Selection.setStart({
+                    row: this.getRowCursorBufferPos(),
+                    column: this.getColumnCursorBufferPos()
+                })
+            }
         },
-        39: () => { // arrowRight
+        39: (ev) => { // arrowRight
             this.incrementColumnBufferPos()
+
+            if (ev.shiftKey) {
+                Selection.setEnd({
+                    column: this.getColumnCursorBufferPos(),
+                    row: this.getRowCursorBufferPos()
+                })
+            } else {
+                Selection.clear()
+                Selection.setStart({
+                    row: this.getRowCursorBufferPos(),
+                    column: this.getColumnCursorBufferPos()
+                })
+            }
         },
-        40: () => { // arrowDown
+        40: (ev) => { // arrowDown
             this.incrementRowBufferPos()
             this.getLineModelBuffer().setSelected()
 
             if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length)
                 this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+
+            if (ev.shiftKey) {
+                Selection.setEnd({
+                    row: this.getRowCursorBufferPos(),
+                    column: this.getColumnCursorBufferPos()
+                })
+            } else {
+                Selection.clear()
+                Selection.setStart({
+                    row: this.getRowCursorBufferPos(),
+                    column: this.getColumnCursorBufferPos()
+                })
+            }
         },
         13: () => { // enter
             this.insertLine()
@@ -68,11 +120,35 @@ export class TextEditor {
 
             this.getLineModelBuffer().setSelected()
         },
-        35: () => { // end
+        35: (ev) => { // end
             this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+
+            if (ev.shiftKey) {
+                Selection.setEnd({
+                    column: this.getColumnCursorBufferPos()
+                })
+            } else {
+                Selection.clear()
+                Selection.setStart({
+                    row: this.getRowCursorBufferPos(),
+                    column: this.getColumnCursorBufferPos()
+                })
+            }
         },
-        36: () => { // home
+        36: (ev) => { // home
             this.setColumnBufferPos(0)
+
+            if (ev.shiftKey) {
+                Selection.setEnd({
+                    column: this.getColumnCursorBufferPos()
+                })
+            } else {
+                Selection.clear()
+                Selection.setStart({
+                    row: this.getRowCursorBufferPos(),
+                    column: this.getColumnCursorBufferPos()
+                })
+            }
         }
     }
 
@@ -154,7 +230,7 @@ export class TextEditor {
             return
 
         if (typeof this.notPrint[keyCode] === "function") {
-            this.notPrint[keyCode]()
+            this.notPrint[keyCode](ev)
             return
         }
 

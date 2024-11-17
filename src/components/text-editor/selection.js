@@ -182,7 +182,10 @@ export class Selection {
 
     static clear() {
         this.selectionsDivArea.innerHTML = ''
-        this.buffer = [[], []]
+        this.buffer = [
+            [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()],
+            [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
+        ]
         window.getSelection().removeAllRanges()
     }
 }
