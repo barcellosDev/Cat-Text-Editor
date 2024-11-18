@@ -32,6 +32,62 @@ export class TextEditor {
     static lineBuffer = []
 
     static notPrint = {
+        33: (ev) => { // pageUp
+            const newYOffset = Math.max(0, this.editorContainer.scrollTop - this.getBufferLineToScreenY(this.EXTRA_BUFFER_ROW_OFFSET))
+
+            this.editorContainer.scroll({
+                top: newYOffset
+            })
+
+            this.setRowBufferPos(this.getScreenYToBuffer(newYOffset))
+            this.getLineModelBuffer().setSelected() // BUG WHEN THE LINE BUFFER ISNT RENDERED YET
+
+            if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
+                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+                this.notPrint[35](ev)
+            }
+
+            if (ev.shiftKey) {
+                Selection.setEnd({
+                    column: this.getColumnCursorBufferPos(),
+                    row: this.getRowCursorBufferPos()
+                })
+            } else {
+                Selection.clear()
+                Selection.setStart({
+                    column: this.getColumnCursorBufferPos(),
+                    row: this.getRowCursorBufferPos()
+                })
+            }
+        },
+        34: (ev) => { // pageDown
+            const newYOffset = Math.min(this.editorContainer.scrollHeight, this.editorContainer.scrollTop + this.getBufferLineToScreenY(this.EXTRA_BUFFER_ROW_OFFSET))
+
+            this.editorContainer.scroll({
+                top: newYOffset
+            })
+
+            this.setRowBufferPos(this.getScreenYToBuffer(newYOffset + this.editorContainer.offsetHeight - this.LINE_HEIGHT))
+            this.getLineModelBuffer().setSelected() // BUG WHEN THE LINE BUFFER ISNT RENDERED YET
+            
+            if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
+                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+                this.notPrint[35](ev)
+            }
+
+            if (ev.shiftKey) {
+                Selection.setEnd({
+                    column: this.getColumnCursorBufferPos(),
+                    row: this.getRowCursorBufferPos()
+                })
+            } else {
+                Selection.clear()
+                Selection.setStart({
+                    column: this.getColumnCursorBufferPos(),
+                    row: this.getRowCursorBufferPos()
+                })
+            }
+        },
         37: (ev) => { // arrowLeft
             this.decrementColumnBufferPos()
 
@@ -47,6 +103,8 @@ export class TextEditor {
                     row: this.getRowCursorBufferPos()
                 })
             }
+
+            this.scrollLeftWhenCursorGetNextToLeftEdge()
         },
         38: (ev) => { // arrowUp
             this.decrementRowBufferPos()
@@ -67,6 +125,8 @@ export class TextEditor {
                     column: this.getColumnCursorBufferPos()
                 })
             }
+
+            this.scrollUpWhenCursorGetNextToTop()
         },
         39: (ev) => { // arrowRight
             this.incrementColumnBufferPos()
@@ -83,6 +143,8 @@ export class TextEditor {
                     column: this.getColumnCursorBufferPos()
                 })
             }
+
+            this.scrollRightWhenCursorGetNextToRightEdge()
         },
         40: (ev) => { // arrowDown
             this.incrementRowBufferPos()
@@ -103,6 +165,8 @@ export class TextEditor {
                     column: this.getColumnCursorBufferPos()
                 })
             }
+
+            this.scrollDownWhenCursorGetNextToBottom()
         },
         13: () => { // enter
             this.insertLine()
@@ -134,6 +198,12 @@ export class TextEditor {
                     column: this.getColumnCursorBufferPos()
                 })
             }
+
+            const lineLength = this.getBufferColumnToScreenX(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+
+            this.editorContainer.scroll({
+                left: lineLength - this.editorContainer.offsetWidth + this.editorLinesElement.offsetWidth + this.fontWidth * 3
+            })
         },
         36: (ev) => { // home
             this.setColumnBufferPos(0)
@@ -149,6 +219,10 @@ export class TextEditor {
                     column: this.getColumnCursorBufferPos()
                 })
             }
+
+            this.editorContainer.scroll({
+                left: 0
+            })
         }
     }
 
@@ -223,12 +297,13 @@ export class TextEditor {
     static handleKeyBoard(ev) {
         ev.preventDefault()
 
+        
         const keyCode = ev.keyCode
         let char = ev.key
-
+        
         if (!this.isCharValid(keyCode))
             return
-
+        
         if (typeof this.notPrint[keyCode] === "function") {
             this.notPrint[keyCode](ev)
             return
@@ -278,7 +353,7 @@ export class TextEditor {
             return
 
         const indexToRemove = this.lineBuffer.findIndex(line => line.index == Line.index)
-        
+
         if (indexToRemove !== -1) {
             Line.remove()
             this.lineBuffer.splice(indexToRemove, 1)
@@ -287,7 +362,7 @@ export class TextEditor {
 
     static getMaxRenderedLine() {
         let max = this.editorElement.querySelector('.line:last-child').getAttribute('buffer-row')
-        
+
         for (let index = 0; index < this.editorElement.children.length; index++) {
             const bufferRow = Number(this.editorElement.children[index].getAttribute('buffer-row'))
 
@@ -300,7 +375,7 @@ export class TextEditor {
 
     static getMinRenderedLine() {
         let min = this.editorElement.children[0].getAttribute('buffer-row')
-        
+
         for (let index = 0; index < this.editorElement.children.length; index++) {
             const bufferRow = Number(this.editorElement.children[index].getAttribute('buffer-row'))
 
@@ -387,7 +462,7 @@ export class TextEditor {
             this.deleteLineModelBuffer()
             this.decrementRowBufferPos()
             this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
-            
+
             this.textBuffer.value[this.getRowCursorBufferPos()] = this.textBuffer.value[this.getRowCursorBufferPos()].concat(deletedLine)
 
             this.getLineModelBuffer().update()
@@ -413,10 +488,10 @@ export class TextEditor {
 
         this.textBuffer.value.splice(this.getRowCursorBufferPos() + 1, 0, currentDataToConcat)
 
-        
+
         const newLineBuffer = this.textBuffer.value[this.getRowCursorBufferPos() + 1]
         const newLineModel = new LineModel(newLineBuffer, this.getRowCursorBufferPos() + 1)
-        
+
         newLineModel.insertAfter(oldLine)
 
         this.incrementLineModelPositions()
@@ -485,7 +560,7 @@ export class TextEditor {
         return (keyCode > 47 && keyCode < 58) || // number keys
             this.notPrint[keyCode] ||
             keyCode == 32 || keyCode == 9 ||
-            keyCode == 226 ||
+            keyCode == 226 || keyCode === 33 || keyCode === 34 ||
             (keyCode > 64 && keyCode < 91) || // letter keys
             (keyCode > 95 && keyCode < 112) || // numpad keys
             (keyCode > 185 && keyCode <= 193) || // ;=,-./` (in order)
@@ -595,6 +670,70 @@ export class TextEditor {
 
     static getBufferColumnToScreenX(columnIndex = null) {
         return Math.round((columnIndex ?? this.getColumnCursorBufferPos()) * this.fontWidth)
+    }
+
+    static scrollRightWhenCursorGetNextToRightEdge() {
+        const pageWidth = this.editorContainer.offsetWidth - this.editorLinesElement.offsetWidth + this.editorContainer.scrollLeft
+        const offsetToScroll = this.fontWidth * 3
+        const currentOffsetLeftCursorPos = this.getBufferColumnToScreenX(this.getColumnCursorBufferPos())
+
+        const hasScrollEnded = pageWidth >= this.editorContainer.scrollWidth
+
+        if (!hasScrollEnded && pageWidth - currentOffsetLeftCursorPos <= offsetToScroll) {
+            this.editorContainer.scroll({
+                left: this.editorContainer.scrollLeft + offsetToScroll
+            })
+
+            this.setColumnBufferPos(this.getScreenXToBuffer(this.editorContainer.offsetWidth - this.editorLinesElement.offsetWidth + this.editorContainer.scrollLeft - offsetToScroll))
+        }
+    }
+
+    static scrollLeftWhenCursorGetNextToLeftEdge() {
+        const offsetToScroll = this.fontWidth * 3
+        const currentOffsetLeftCursorPos = this.getBufferColumnToScreenX(this.getColumnCursorBufferPos())
+
+        const hasScrollEnded = this.editorContainer.scrollLeft <= 0
+
+        if (!hasScrollEnded && currentOffsetLeftCursorPos - this.editorContainer.scrollLeft <= offsetToScroll) {
+            this.editorContainer.scroll({
+                left: this.editorContainer.scrollLeft - offsetToScroll
+            })
+
+            this.setColumnBufferPos(this.getScreenXToBuffer(this.editorContainer.scrollLeft + offsetToScroll))
+        }
+    }
+
+    static scrollDownWhenCursorGetNextToBottom() {
+        const pageHeight = this.editorContainer.offsetHeight + this.editorContainer.scrollTop
+        const offsetToScroll = this.LINE_HEIGHT * 3
+        const currentOffsetTopCursorPos = this.getBufferLineToScreenY(this.getRowCursorBufferPos())
+
+        const hasScrollEnded = pageHeight >= this.editorContainer.scrollHeight
+
+        if (!hasScrollEnded && pageHeight - currentOffsetTopCursorPos <= offsetToScroll) {
+            this.editorContainer.scroll({
+                top: this.editorContainer.scrollTop + this.LINE_HEIGHT
+            })
+
+            this.setRowBufferPos(this.getScreenYToBuffer(this.editorContainer.offsetHeight + this.editorContainer.scrollTop - offsetToScroll))
+            this.getLineModelBuffer().setSelected()
+        }
+    }
+
+    static scrollUpWhenCursorGetNextToTop() {
+        const offsetToScroll = this.LINE_HEIGHT * 3
+        const currentOffsetTopCursorPos = this.getBufferLineToScreenY(this.getRowCursorBufferPos())
+
+        const hasScrollEnded = this.editorContainer.scrollTop <= 0
+
+        if (!hasScrollEnded && currentOffsetTopCursorPos - this.editorContainer.scrollTop <= offsetToScroll) {
+            this.editorContainer.scroll({
+                top: this.editorContainer.scrollTop - this.LINE_HEIGHT
+            })
+
+            this.setRowBufferPos(this.getScreenYToBuffer(this.editorContainer.scrollTop + offsetToScroll))
+            this.getLineModelBuffer().setSelected()
+        }
     }
 
     static renderContent() {
