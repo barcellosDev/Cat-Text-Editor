@@ -13,8 +13,10 @@ export class TextEditor {
     static TAB_VALUE = '  '
     static EXTRA_BUFFER_ROW_OFFSET = 30
 
+    static IS_SHIFT_KEY_PRESSED = false
+
     static config = {
-        fontSize: 16,
+        fontSize: 14,
         fontFamily: 'Consolas'
     }
 
@@ -32,6 +34,9 @@ export class TextEditor {
     static lineBuffer = []
 
     static notPrint = {
+        16: (ev) => {
+            this.IS_SHIFT_KEY_PRESSED = ev.shiftKey
+        },
         33: (ev) => { // pageUp
             const newYOffset = Math.max(0, this.editorContainer.scrollTop - this.getBufferLineToScreenY(this.EXTRA_BUFFER_ROW_OFFSET))
 
@@ -294,13 +299,13 @@ export class TextEditor {
         this.cursorElement = cursor
     }
 
-    static handleKeyBoard(ev) {
+    static handleInputKeyBoard(ev) {
         ev.preventDefault()
 
         
         const keyCode = ev.keyCode
         let char = ev.key
-        
+
         if (!this.isCharValid(keyCode))
             return
         
@@ -330,6 +335,10 @@ export class TextEditor {
 
         this.insertText(char)
         this.getLineModelBuffer().update()
+    }
+
+    static handleReleaseKeyboard(ev) {
+        this.IS_SHIFT_KEY_PRESSED = ev.shiftKey
     }
 
     static getLineModelBuffer(row = null) {
@@ -560,7 +569,8 @@ export class TextEditor {
         return (keyCode > 47 && keyCode < 58) || // number keys
             this.notPrint[keyCode] ||
             keyCode == 32 || keyCode == 9 ||
-            keyCode == 226 || keyCode === 33 || keyCode === 34 ||
+            keyCode == 226 || keyCode === 33 ||
+            keyCode === 16 || keyCode === 34 ||
             (keyCode > 64 && keyCode < 91) || // letter keys
             (keyCode > 95 && keyCode < 112) || // numpad keys
             (keyCode > 185 && keyCode <= 193) || // ;=,-./` (in order)

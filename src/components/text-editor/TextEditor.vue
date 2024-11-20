@@ -106,20 +106,22 @@ onMounted(() => {
     }
 
     editor.onmousedown = (ev) => {
-        Selection.clear()
-
         let mouseOffsetX = ev.offsetX
         let lineOffsetY = getOffsetTopFromElement(ev.target)
 
         setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
-
         TextEditor.getLineModelBuffer().setSelected()
 
-        Selection.setStart({
-            row: TextEditor.getRowCursorBufferPos(),
-            column: TextEditor.getColumnCursorBufferPos()
-        })
-
+        if (TextEditor.IS_SHIFT_KEY_PRESSED) {
+            canEnterSelectionChange = false
+            
+            Selection.setEnd({
+                column: TextEditor.getColumnCursorBufferPos(),
+                row: TextEditor.getRowCursorBufferPos()
+            })
+        } else {
+            Selection.clear()
+        }
 
         editor.onmousemove = (ev) => {
             const selection = window.getSelection()
@@ -146,8 +148,12 @@ onMounted(() => {
         filesStore.files[filesStore.selectedFileIndex].cursor = TextEditor.cursorBuffer.value
     }
 
+    window.onkeyup = ev => {
+        TextEditor.handleReleaseKeyboard(ev)
+    }
+
     window.onkeydown = ev => {
-        TextEditor.handleKeyBoard(ev)
+        TextEditor.handleInputKeyBoard(ev)
 
         clearTimeout(timeoutHandlerToSaveFileOnMemory)
         timeoutHandlerToSaveFileOnMemory = setTimeout(() => {
@@ -177,21 +183,21 @@ onMounted(() => {
                 if (textEditorMainContainer.scrollTop < lastScrollTop) {
                     if (firstLineBufferRow - start <= 5) {
                         isRendering = true
-    
+
                         const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
                         const firstLineModel = TextEditor.getLineModelBuffer(firstLineBufferRow)
-    
+
                         for (let index = Math.max(0, firstLineBufferRow - 1); index >= extraStart; index--) {
                             if (editor.querySelector(`.line[buffer-row="${index}"]`))
                                 continue
-    
+
                             const row = TextEditor.textBuffer.value[index]
                             const Line = new LineModel(row, index)
-        
+
                             Line.insertBefore(firstLineModel)
                             TextEditor.lineBuffer.push(Line)
                         }
-    
+
                         for (let index = lastLineBufferRow; index > extraEnd; index--) {
                             TextEditor.deleteLineModelBuffer(index)
                         }
@@ -203,22 +209,22 @@ onMounted(() => {
                 if (textEditorMainContainer.scrollTop > lastScrollTop) {
                     if (lastLineBufferRow - end <= 5) {
                         isRendering = true
-    
+
                         const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
                         const lastLineModel = TextEditor.getLineModelBuffer(lastLineBufferRow)
-    
+
                         for (let index = Math.min(TextEditor.textBuffer.value.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
                             if (editor.querySelector(`.line[buffer-row="${index}"]`))
                                 continue
-    
+
                             const row = TextEditor.textBuffer.value[index]
                             const Line = new LineModel(row, index)
-        
+
                             Line.insertAfter(lastLineModel)
                             TextEditor.lineBuffer.push(Line)
                         }
-    
-                        
+
+
                         for (let index = firstLineBufferRow; index < extraStart; index++) {
                             TextEditor.deleteLineModelBuffer(index)
                         }

@@ -41,8 +41,10 @@ export class Selection {
 
     static render() {
 
-        if (this.isCollapsed())
+        if (this.isCollapsed()) {
+            this.clear()
             return
+        }
 
         // forward selection (normal)
         if (this.getStart()[0] < this.getEnd()[0]) {
@@ -115,7 +117,7 @@ export class Selection {
                 width = TextEditor.getBufferColumnToScreenX(TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos()].length) - left
             }
         }
-        
+
         if (!selectionDiv) {
             selectionDiv = this.buildSelectionWrapper(left, width, top)
             this.selectionsDivArea.appendChild(selectionDiv)
@@ -124,9 +126,18 @@ export class Selection {
         this.updateSelectionWrapper(selectionDiv, { left, width, top })
 
         this.selectionsDivArea
-            .querySelectorAll(`[buffer-row="${this.getEnd()[0]}"] ~ [buffer-row]`)
-            .forEach(div => div?.remove?.())
+            .querySelectorAll(`[buffer-row]`)
+            .forEach(div => {
+                const bufferRow = Number(div.getAttribute('buffer-row'))
 
+                if (this.isReversed()) {
+                    if (bufferRow < this.getEnd()[0] || bufferRow > this.getStart()[0])
+                        div?.remove?.()
+                } else {
+                    if (bufferRow > this.getEnd()[0] || bufferRow < this.getStart()[0])
+                        div?.remove?.()
+                }
+            })
     }
 
     static buildSelectionWrapper(left, width, top) {
