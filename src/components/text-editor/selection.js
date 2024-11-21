@@ -46,10 +46,23 @@ export class Selection {
             return
         }
 
+        const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
+
         // forward selection (normal)
         if (this.getStart()[0] < this.getEnd()[0]) {
-            for (let row = this.getStart()[0]; row < this.getEnd()[0]; row++) {
+            let start = this.getStart()[0]
 
+            if (start < extraStart) {
+                start = extraStart
+            }
+
+            let end = this.getEnd()[0]
+
+            if (end > extraEnd) {
+                end = extraEnd
+            }
+
+            for (let row = start; row < end; row++) {
                 let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
                 let newLeft = 0
 
@@ -74,7 +87,19 @@ export class Selection {
 
         // backward selection
         if (this.isReversed()) {
-            for (let row = this.getStart()[0]; row > this.getEnd()[0]; row--) {
+            let start = this.getStart()[0]
+
+            if (start > extraEnd) {
+                start = extraEnd
+            }
+
+            let end = this.getEnd()[0]
+
+            if (end < extraStart) {
+                end = extraStart
+            }
+            
+            for (let row = start; row > end; row--) {
                 let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
 
                 const lineLength = TextEditor.textBuffer.value[row].length
@@ -198,5 +223,37 @@ export class Selection {
             [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
         ]
         window.getSelection().removeAllRanges()
+    }
+
+    static getMaxRenderedBufferRow() {
+        if (this.selectionsDivArea.childElementCount === 0)
+            return
+
+        let max = this.selectionsDivArea.querySelector('.selected-text:last-child').getAttribute('buffer-row')
+
+        for (let index = 0; index < this.selectionsDivArea.children.length; index++) {
+            const bufferRow = Number(this.selectionsDivArea.children[index].getAttribute('buffer-row'))
+
+            if (bufferRow > max)
+                max = bufferRow
+        }
+
+        return Number(max)
+    }
+
+    static getMinRenderedBufferRow() {
+        if (this.selectionsDivArea.childElementCount === 0)
+            return
+
+        let min = this.selectionsDivArea.firstElementChild.getAttribute('buffer-row')
+
+        for (let index = 0; index < this.selectionsDivArea.children.length; index++) {
+            const bufferRow = Number(this.selectionsDivArea.children[index].getAttribute('buffer-row'))
+
+            if (bufferRow < min)
+                min = bufferRow
+        }
+
+        return Number(min)
     }
 }

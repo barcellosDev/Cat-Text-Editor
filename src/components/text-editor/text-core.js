@@ -180,7 +180,7 @@ export class TextEditor {
         8: () => { // backspace
             this.handleBackSpace()
 
-            const lastLineBufferRow = this.getMaxRenderedLine()
+            const lastLineBufferRow = this.getMaxRenderedBufferRow()
             const { end } = TextEditor.getViewPortRange()
 
             if (lastLineBufferRow < end) {
@@ -369,7 +369,7 @@ export class TextEditor {
         }
     }
 
-    static getMaxRenderedLine() {
+    static getMaxRenderedBufferRow() {
         let max = this.editorElement.querySelector('.line:last-child').getAttribute('buffer-row')
 
         for (let index = 0; index < this.editorElement.children.length; index++) {
@@ -382,7 +382,7 @@ export class TextEditor {
         return Number(max)
     }
 
-    static getMinRenderedLine() {
+    static getMinRenderedBufferRow() {
         let min = this.editorElement.children[0].getAttribute('buffer-row')
 
         for (let index = 0; index < this.editorElement.children.length; index++) {

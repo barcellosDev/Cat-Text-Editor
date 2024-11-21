@@ -114,7 +114,7 @@ onMounted(() => {
 
         if (TextEditor.IS_SHIFT_KEY_PRESSED) {
             canEnterSelectionChange = false
-            
+
             Selection.setEnd({
                 column: TextEditor.getColumnCursorBufferPos(),
                 row: TextEditor.getRowCursorBufferPos()
@@ -177,8 +177,11 @@ onMounted(() => {
 
                 const { start, end } = TextEditor.getViewPortRange()
 
-                const firstLineBufferRow = TextEditor.getMinRenderedLine()
-                const lastLineBufferRow = TextEditor.getMaxRenderedLine()
+                const firstLineBufferRow = TextEditor.getMinRenderedBufferRow()
+                const lastLineBufferRow = TextEditor.getMaxRenderedBufferRow()
+
+                const firstSelectionBufferRow = Selection.getMinRenderedBufferRow()
+                const lastSelectionBufferRow = Selection.getMaxRenderedBufferRow()
 
                 if (textEditorMainContainer.scrollTop < lastScrollTop) {
                     if (firstLineBufferRow - start <= 5) {
@@ -202,6 +205,14 @@ onMounted(() => {
                             TextEditor.deleteLineModelBuffer(index)
                         }
 
+                        for (let index = lastSelectionBufferRow; index > extraEnd; index--) {
+                            const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
+
+                            if (selectionDiv)
+                                selectionDiv.remove()
+                        }
+
+                        Selection.render()
                         isRendering = false
                     }
                 }
@@ -229,6 +240,14 @@ onMounted(() => {
                             TextEditor.deleteLineModelBuffer(index)
                         }
 
+                        for (let index = firstSelectionBufferRow; index < extraStart; index++) {
+                            const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
+
+                            if (selectionDiv)
+                                selectionDiv.remove()
+                        }
+
+                        Selection.render()
                         isRendering = false
                     }
                 }
