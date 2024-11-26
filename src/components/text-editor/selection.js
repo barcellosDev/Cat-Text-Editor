@@ -98,7 +98,7 @@ export class Selection {
             if (end < extraStart) {
                 end = extraStart
             }
-            
+
             for (let row = start; row > end; row--) {
                 let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
 
@@ -188,8 +188,14 @@ export class Selection {
         width = null,
         top = null
     }) {
-        if (left !== null)
+        if (left !== null) {
             textSelectionDiv.style.left = `${left}px`
+
+            if (left === 0) {
+                textSelectionDiv.style.borderTopLeftRadius = '0px'
+                textSelectionDiv.style.borderBottomLeftRadius = '0px'
+            }
+        }
 
         if (width !== null)
             textSelectionDiv.style.width = `${width}px`
@@ -223,6 +229,22 @@ export class Selection {
             [TextEditor.getRowCursorBufferPos(), TextEditor.getColumnCursorBufferPos()]
         ]
         window.getSelection().removeAllRanges()
+    }
+
+    static collapseToStart() {
+        this.selectionsDivArea.innerHTML = ''
+        window.getSelection().removeAllRanges()
+        this.buffer[1] = this.buffer[0]
+        TextEditor.setRowBufferPos(this.getStart()[0])
+        TextEditor.setColumnBufferPos(this.getStart()[1])
+    }
+
+    static collapseToEnd() {
+        this.selectionsDivArea.innerHTML = ''
+        window.getSelection().removeAllRanges()
+        this.buffer[0] = this.buffer[1]
+        TextEditor.setRowBufferPos(this.getEnd()[0])
+        TextEditor.setColumnBufferPos(this.getEnd()[1])
     }
 
     static getMaxRenderedBufferRow() {

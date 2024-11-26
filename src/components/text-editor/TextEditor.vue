@@ -165,94 +165,92 @@ onMounted(() => {
 
 
     let lastScrollTop = 0
-    let isRendering = false
     let isTicking = false
+    let lastExecutionTime = 0
+
+    const throttleInterval = 30
 
     textEditorMainContainer.onscroll = () => {
+        const now = Date.now()
 
         if (!isTicking) {
             window.requestAnimationFrame(() => {
-                if (isRendering)
-                    return
+                if (now - lastExecutionTime >= throttleInterval) {
+                    const { start, end } = TextEditor.getViewPortRange()
 
-                const { start, end } = TextEditor.getViewPortRange()
+                    const firstLineBufferRow = TextEditor.getMinRenderedBufferRow()
+                    const lastLineBufferRow = TextEditor.getMaxRenderedBufferRow()
 
-                const firstLineBufferRow = TextEditor.getMinRenderedBufferRow()
-                const lastLineBufferRow = TextEditor.getMaxRenderedBufferRow()
+                    const firstSelectionBufferRow = Selection.getMinRenderedBufferRow()
+                    const lastSelectionBufferRow = Selection.getMaxRenderedBufferRow()
 
-                const firstSelectionBufferRow = Selection.getMinRenderedBufferRow()
-                const lastSelectionBufferRow = Selection.getMaxRenderedBufferRow()
+                    if (textEditorMainContainer.scrollTop < lastScrollTop) {
+                        if (start - firstLineBufferRow <= 5) {
 
-                if (textEditorMainContainer.scrollTop < lastScrollTop) {
-                    if (firstLineBufferRow - start <= 5) {
-                        isRendering = true
+                            const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
 
-                        const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
-                        const firstLineModel = TextEditor.getLineModelBuffer(firstLineBufferRow)
+                            for (let index = Math.max(0, firstLineBufferRow - 1); index >= extraStart; index--) {
+                                if (editor.querySelector(`.line[buffer-row="${index}"]`))
+                                    continue
 
-                        for (let index = Math.max(0, firstLineBufferRow - 1); index >= extraStart; index--) {
-                            if (editor.querySelector(`.line[buffer-row="${index}"]`))
-                                continue
+                                const row = TextEditor.textBuffer.value[index]
+                                const Line = new LineModel(row, index)
 
-                            const row = TextEditor.textBuffer.value[index]
-                            const Line = new LineModel(row, index)
+                                Line.insertToDOM()
+                                TextEditor.lineBuffer.push(Line)
+                            }
 
-                            Line.insertBefore(firstLineModel)
-                            TextEditor.lineBuffer.push(Line)
+                            for (let index = lastLineBufferRow; index > extraEnd; index--) {
+                                TextEditor.deleteLineModelBuffer(index)
+                            }
+
+                            for (let index = lastSelectionBufferRow; index > extraEnd; index--) {
+                                const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
+
+                                if (selectionDiv)
+                                    selectionDiv.remove()
+                            }
+
+                            Selection.render()
                         }
-
-                        for (let index = lastLineBufferRow; index > extraEnd; index--) {
-                            TextEditor.deleteLineModelBuffer(index)
-                        }
-
-                        for (let index = lastSelectionBufferRow; index > extraEnd; index--) {
-                            const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
-
-                            if (selectionDiv)
-                                selectionDiv.remove()
-                        }
-
-                        Selection.render()
-                        isRendering = false
                     }
+
+                    if (textEditorMainContainer.scrollTop > lastScrollTop) {
+                        if (lastLineBufferRow - end <= 5) {
+
+                            const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
+
+                            for (let index = Math.min(TextEditor.textBuffer.value.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
+                                if (editor.querySelector(`.line[buffer-row="${index}"]`))
+                                    continue
+
+                                const row = TextEditor.textBuffer.value[index]
+                                const Line = new LineModel(row, index)
+
+                                Line.insertToDOM()
+                                TextEditor.lineBuffer.push(Line)
+                            }
+
+
+                            for (let index = firstLineBufferRow; index < extraStart; index++) {
+                                TextEditor.deleteLineModelBuffer(index)
+                            }
+
+                            for (let index = firstSelectionBufferRow; index < extraStart; index++) {
+                                const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
+
+                                if (selectionDiv)
+                                    selectionDiv.remove()
+                            }
+
+                            Selection.render()
+                        }
+                    }
+
+                    lastScrollTop = textEditorMainContainer.scrollTop
+                    lastExecutionTime = now
                 }
 
-                if (textEditorMainContainer.scrollTop > lastScrollTop) {
-                    if (lastLineBufferRow - end <= 5) {
-                        isRendering = true
-
-                        const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
-                        const lastLineModel = TextEditor.getLineModelBuffer(lastLineBufferRow)
-
-                        for (let index = Math.min(TextEditor.textBuffer.value.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
-                            if (editor.querySelector(`.line[buffer-row="${index}"]`))
-                                continue
-
-                            const row = TextEditor.textBuffer.value[index]
-                            const Line = new LineModel(row, index)
-
-                            Line.insertAfter(lastLineModel)
-                            TextEditor.lineBuffer.push(Line)
-                        }
-
-
-                        for (let index = firstLineBufferRow; index < extraStart; index++) {
-                            TextEditor.deleteLineModelBuffer(index)
-                        }
-
-                        for (let index = firstSelectionBufferRow; index < extraStart; index++) {
-                            const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
-
-                            if (selectionDiv)
-                                selectionDiv.remove()
-                        }
-
-                        Selection.render()
-                        isRendering = false
-                    }
-                }
-
-                lastScrollTop = textEditorMainContainer.scrollTop
                 isTicking = false
             })
 

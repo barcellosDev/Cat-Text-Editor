@@ -16,20 +16,10 @@ export class LineModel {
         this.element = this.buildLine()
         this.lineCountElement = this.buildLineCount()
     }
-
-    insertAfter(lineModel = null) {
-        TextEditor.editorElement.insertBefore(this.element, lineModel?.element?.nextElementSibling)
-        TextEditor.editorLinesElement.insertBefore(this.lineCountElement, lineModel?.lineCountElement?.nextElementSibling)
-    }
-
-    insertBefore(lineModel) {
-        if (!lineModel) {
-            TextEditor.editorElement.insertBefore(this.element, TextEditor.editorElement.firstElementChild)
-            TextEditor.editorLinesElement.insertBefore(this.lineCountElement, TextEditor.editorLinesElement.firstElementChild)
-        } else {
-            TextEditor.editorElement.insertBefore(this.element, lineModel.element)
-            TextEditor.editorLinesElement.insertBefore(this.lineCountElement, lineModel.lineCountElement)
-        }
+    
+    insertToDOM() {
+        TextEditor.editorElement.appendChild(this.element)
+        TextEditor.editorLinesElement.appendChild(this.lineCountElement)
     }
 
     remove() {

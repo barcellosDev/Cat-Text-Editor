@@ -44,8 +44,18 @@ export class TextEditor {
                 top: newYOffset
             })
 
-            this.setRowBufferPos(this.getScreenYToBuffer(newYOffset))
-            this.getLineModelBuffer().setSelected() // BUG WHEN THE LINE BUFFER ISNT RENDERED YET
+            const newRowBuffer = this.getScreenYToBuffer(newYOffset)
+            this.setRowBufferPos(newRowBuffer)
+
+            let firstLineBufferRow = this.editorElement.querySelector(`[buffer-row="${newRowBuffer}"]`)
+
+            if (!firstLineBufferRow) {
+                firstLineBufferRow = this.getMinRenderedBufferRow()
+            } else {
+                firstLineBufferRow = firstLineBufferRow.getAttribute('buffer-row')
+            }
+
+            this.getLineModelBuffer(firstLineBufferRow).setSelected()
 
             if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
                 this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
@@ -72,9 +82,19 @@ export class TextEditor {
                 top: newYOffset
             })
 
-            this.setRowBufferPos(this.getScreenYToBuffer(newYOffset + this.editorContainer.offsetHeight - this.LINE_HEIGHT))
-            this.getLineModelBuffer().setSelected() // BUG WHEN THE LINE BUFFER ISNT RENDERED YET
+            const newRowBuffer = this.getScreenYToBuffer(newYOffset + this.editorContainer.offsetHeight - this.LINE_HEIGHT)
+            this.setRowBufferPos(newRowBuffer)
+
+            let lastLineBufferRow = this.editorElement.querySelector(`[buffer-row="${newRowBuffer}"]`)
+
+            if (!lastLineBufferRow) {
+                lastLineBufferRow = this.getMaxRenderedBufferRow()
+            } else {
+                lastLineBufferRow = lastLineBufferRow.getAttribute('buffer-row')
+            }
             
+            this.getLineModelBuffer(lastLineBufferRow).setSelected()
+
             if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
                 this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
                 this.notPrint[35](ev)
@@ -178,7 +198,7 @@ export class TextEditor {
             this.getLineModelBuffer().setSelected()
         },
         8: () => { // backspace
-            this.handleBackSpace()
+            this.handleDelete()
 
             const lastLineBufferRow = this.getMaxRenderedBufferRow()
             const { end } = TextEditor.getViewPortRange()
@@ -251,7 +271,7 @@ export class TextEditor {
             navigator.clipboard.writeText(selectedData)
 
             if (char === 'x' && selectedData.length > 0)
-                this.handleBackSpace()
+                this.handleDelete()
         }
 
         if (char === 'v') {
@@ -302,13 +322,13 @@ export class TextEditor {
     static handleInputKeyBoard(ev) {
         ev.preventDefault()
 
-        
+
         const keyCode = ev.keyCode
         let char = ev.key
 
         if (!this.isCharValid(keyCode))
             return
-        
+
         if (typeof this.notPrint[keyCode] === "function") {
             this.notPrint[keyCode](ev)
             return
@@ -345,7 +365,7 @@ export class TextEditor {
         if (row === null)
             row = this.getRowCursorBufferPos()
 
-        return this.lineBuffer.filter(line => line.index === row)[0] ?? null
+        return this.lineBuffer.filter(line => line.index == row)[0] ?? null
     }
 
     static insertLineModelBuffer(lineModel) {
@@ -395,16 +415,14 @@ export class TextEditor {
         return Number(min)
     }
 
-    static handleBackSpace() {
-        if (this.getRowCursorBufferPos() === 0 && this.getColumnCursorBufferPos() === 0) {
-            return
-        }
-
+    static handleDeleteWithSelection() {
         const selectionStartRow = Selection.getStart()[0]
         const selectionEndRow = Selection.getEnd()[0]
 
         const selectionStartColumn = Selection.getStart()[1]
         const selectionEndColumn = Selection.getEnd()[1]
+
+
 
         if (selectionStartRow > selectionEndRow) {
 
@@ -423,8 +441,7 @@ export class TextEditor {
             this.getLineModelBuffer().update()
             this.setColumnBufferPos(selectionEndColumn)
 
-            Selection.clear()
-            return
+            Selection.collapseToEnd()
         }
 
         if (selectionStartRow === selectionEndRow && (selectionStartColumn !== selectionEndColumn)) {
@@ -440,8 +457,6 @@ export class TextEditor {
             }
 
             Selection.clear()
-
-            return
         }
 
         if (selectionEndRow > selectionStartRow) {
@@ -460,33 +475,42 @@ export class TextEditor {
             this.getLineModelBuffer().update()
             this.setColumnBufferPos(selectionStartColumn)
 
-            Selection.clear()
-            return
+            Selection.collapseToStart()
         }
+    }
 
-        if (this.getRowCursorBufferPos() > 0 && this.getColumnCursorBufferPos() === 0) {
-            const deletedLine = this.textBuffer.value.splice(this.getRowCursorBufferPos(), 1)[0]
-            this.getLineModelBuffer().update()
+    static handleDelete() {
+        if (Selection.isCollapsed()) {
+            if (this.getRowCursorBufferPos() === 0 && this.getColumnCursorBufferPos() === 0) {
+                return
+            }
 
-            this.deleteLineModelBuffer()
-            this.decrementRowBufferPos()
-            this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+            if (this.getRowCursorBufferPos() > 0 && this.getColumnCursorBufferPos() === 0) {
+                const deletedLine = this.textBuffer.value.splice(this.getRowCursorBufferPos(), 1)[0]
+                this.getLineModelBuffer().update()
 
-            this.textBuffer.value[this.getRowCursorBufferPos()] = this.textBuffer.value[this.getRowCursorBufferPos()].concat(deletedLine)
+                this.deleteLineModelBuffer()
+                this.decrementRowBufferPos()
+                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
 
-            this.getLineModelBuffer().update()
-            this.decrementLineModelPositions()
-            return
-        }
+                this.textBuffer.value[this.getRowCursorBufferPos()] = this.textBuffer.value[this.getRowCursorBufferPos()].concat(deletedLine)
 
-        if (this.getColumnCursorBufferPos() < this.textBuffer.value[this.getRowCursorBufferPos()].length) {
-            this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos() - 1, 1)
-            this.decrementColumnBufferPos()
-            this.getLineModelBuffer().update()
+                this.getLineModelBuffer().update()
+                this.decrementLineModelPositions()
+                return
+            }
+
+            if (this.getColumnCursorBufferPos() < this.textBuffer.value[this.getRowCursorBufferPos()].length) {
+                this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos() - 1, 1)
+                this.decrementColumnBufferPos()
+                this.getLineModelBuffer().update()
+            } else {
+                this.textBuffer.value[this.getRowCursorBufferPos()].pop()
+                this.decrementColumnBufferPos()
+                this.getLineModelBuffer().update()
+            }
         } else {
-            this.textBuffer.value[this.getRowCursorBufferPos()].pop()
-            this.decrementColumnBufferPos()
-            this.getLineModelBuffer().update()
+            this.handleDeleteWithSelection()
         }
     }
 
@@ -543,9 +567,9 @@ export class TextEditor {
     static insertText(text) {
 
         // if has selection, replace all the selected text with the typed char
-        // that is, delete the selected data (call handleBackSpace) and insert the char
+        // that is, delete the selected data (call handleDelete) and insert the char
         if (!Selection.isCollapsed()) {
-            this.handleBackSpace()
+            this.handleDelete()
         }
 
         const newBuffer = this.parseText(text)
@@ -757,9 +781,8 @@ export class TextEditor {
             const row = this.textBuffer.value[index]
             const Line = new LineModel(row, index)
 
+            Line.insertToDOM()
             this.lineBuffer.push(Line)
-            this.editorElement.appendChild(Line.element)
-            this.editorLinesElement.appendChild(Line.lineCountElement)
         }
     }
 
