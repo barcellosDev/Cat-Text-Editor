@@ -84,7 +84,7 @@ onMounted(() => {
             if (range.endContainer?.classList?.contains('line')) {
                 const nextRowBufferPosBasedOnInitialPos = Selection.getStart()[0] + 1
 
-                if (TextEditor.textBuffer.value[nextRowBufferPosBasedOnInitialPos]) {
+                if (TextEditor.textBuffer[nextRowBufferPosBasedOnInitialPos]) {
                     TextEditor.setRowBufferPos(nextRowBufferPosBasedOnInitialPos)
                     newOffsetX = 0 // first offset of the next line
                 } else {
@@ -145,7 +145,7 @@ onMounted(() => {
             })
         }
 
-        filesStore.files[filesStore.selectedFileIndex].cursor = TextEditor.cursorBuffer.value
+        filesStore.files[filesStore.selectedFileIndex].cursor = TextEditor.cursorBuffer
     }
 
     window.onkeyup = ev => {
@@ -167,6 +167,7 @@ onMounted(() => {
     let lastScrollTop = 0
     let isTicking = false
     let lastExecutionTime = 0
+    let scrollDebounceTimeout
 
     const throttleInterval = 30
 
@@ -193,7 +194,7 @@ onMounted(() => {
                                 if (editor.querySelector(`.line[buffer-row="${index}"]`))
                                     continue
 
-                                const row = TextEditor.textBuffer.value[index]
+                                const row = TextEditor.textBuffer[index]
                                 const Line = new LineModel(row, index)
 
                                 Line.insertToDOM()
@@ -220,11 +221,11 @@ onMounted(() => {
 
                             const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
 
-                            for (let index = Math.min(TextEditor.textBuffer.value.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
+                            for (let index = Math.min(TextEditor.textBuffer.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
                                 if (editor.querySelector(`.line[buffer-row="${index}"]`))
                                     continue
 
-                                const row = TextEditor.textBuffer.value[index]
+                                const row = TextEditor.textBuffer[index]
                                 const Line = new LineModel(row, index)
 
                                 Line.insertToDOM()
@@ -249,6 +250,11 @@ onMounted(() => {
 
                     lastScrollTop = textEditorMainContainer.scrollTop
                     lastExecutionTime = now
+                    
+                    clearTimeout(scrollDebounceTimeout)
+                    scrollDebounceTimeout = setTimeout(() => {
+                        textEditorMainContainer.dispatchEvent(new Event('scroll-end'))
+                    }, 150)
                 }
 
                 isTicking = false
@@ -266,9 +272,9 @@ onMounted(() => {
     TextEditor.reset()
 
     if (selectedFile) { // has loaded file        
-        TextEditor.textBuffer.value = TextEditor.parseText(selectedFile.text)
+        TextEditor.textBuffer = TextEditor.parseText(selectedFile.text)
 
-        document.getElementById('text-editor-content-container').style.height = `${TextEditor.textBuffer.value.length * TextEditor.LINE_HEIGHT}px`
+        document.getElementById('text-editor-content-container').style.height = `${TextEditor.textBuffer.length * TextEditor.LINE_HEIGHT}px`
 
         TextEditor.renderContent()
     }
@@ -286,6 +292,7 @@ onUnmounted(() => {
     window.removeEventListener('resize', setMainEditorContainerHeight)
     window.removeEventListener('resize', setEditorContainerWidth)
     window.removeEventListener('ui-change', setEditorDomRect)
+    //textEditorMainContainer.removeEventListener('scroll-end', )
 })
 
 function setEditorDomRect() {

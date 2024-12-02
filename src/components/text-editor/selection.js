@@ -66,7 +66,7 @@ export class Selection {
                 let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
                 let newLeft = 0
 
-                const lineLength = TextEditor.textBuffer.value[row].length
+                const lineLength = TextEditor.textBuffer[row].length
                 let newWidth = lineLength === 0 ? TextEditor.fontWidth : TextEditor.getBufferColumnToScreenX(lineLength)
 
                 const newTop = TextEditor.getBufferLineToScreenY(row)
@@ -102,7 +102,7 @@ export class Selection {
             for (let row = start; row > end; row--) {
                 let selectionDiv = this.selectionsDivArea.querySelector(`.selected-text[buffer-row="${row}"]`)
 
-                const lineLength = TextEditor.textBuffer.value[row].length
+                const lineLength = TextEditor.textBuffer[row].length
                 let newLeft = 0
                 let newWidth = lineLength === 0 ? TextEditor.fontWidth : TextEditor.getBufferColumnToScreenX(lineLength)
                 const newTop = TextEditor.getBufferLineToScreenY(row)
@@ -139,7 +139,7 @@ export class Selection {
 
             if (this.isReversed()) {
                 left = TextEditor.getBufferColumnToScreenX()
-                width = TextEditor.getBufferColumnToScreenX(TextEditor.textBuffer.value[TextEditor.getRowCursorBufferPos()].length) - left
+                width = TextEditor.getBufferColumnToScreenX(TextEditor.textBuffer[TextEditor.getRowCursorBufferPos()].length) - left
             }
         }
 

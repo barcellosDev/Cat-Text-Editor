@@ -1,4 +1,3 @@
-import { ref } from "vue"
 import { LineModel } from "./line-model"
 import { useFilesStore } from '@/store/files';
 import { Selection } from "./selection";
@@ -26,11 +25,8 @@ export class TextEditor {
         return context.measureText('A').width
     })()
 
-    static textBuffer = ref([
-        []
-    ])
-
-    static cursorBuffer = ref([0, 0])
+    static textBuffer = [[]]
+    static cursorBuffer = [0, 0]
     static lineBuffer = []
 
     static notPrint = {
@@ -57,8 +53,8 @@ export class TextEditor {
 
             this.getLineModelBuffer(firstLineBufferRow).setSelected()
 
-            if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
-                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+            if (this.getColumnCursorBufferPos() > this.textBuffer[this.getRowCursorBufferPos()].length) {
+                this.setColumnBufferPos(this.textBuffer[this.getRowCursorBufferPos()].length)
                 this.notPrint[35](ev)
             }
 
@@ -92,11 +88,11 @@ export class TextEditor {
             } else {
                 lastLineBufferRow = lastLineBufferRow.getAttribute('buffer-row')
             }
-            
+
             this.getLineModelBuffer(lastLineBufferRow).setSelected()
 
-            if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
-                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+            if (this.getColumnCursorBufferPos() > this.textBuffer[this.getRowCursorBufferPos()].length) {
+                this.setColumnBufferPos(this.textBuffer[this.getRowCursorBufferPos()].length)
                 this.notPrint[35](ev)
             }
 
@@ -135,8 +131,8 @@ export class TextEditor {
             this.decrementRowBufferPos()
             this.getLineModelBuffer().setSelected()
 
-            if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length)
-                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+            if (this.getColumnCursorBufferPos() > this.textBuffer[this.getRowCursorBufferPos()].length)
+                this.setColumnBufferPos(this.textBuffer[this.getRowCursorBufferPos()].length)
 
             if (ev.shiftKey) {
                 Selection.setEnd({
@@ -175,8 +171,8 @@ export class TextEditor {
             this.incrementRowBufferPos()
             this.getLineModelBuffer().setSelected()
 
-            if (this.getColumnCursorBufferPos() > this.textBuffer.value[this.getRowCursorBufferPos()].length)
-                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+            if (this.getColumnCursorBufferPos() > this.textBuffer[this.getRowCursorBufferPos()].length)
+                this.setColumnBufferPos(this.textBuffer[this.getRowCursorBufferPos()].length)
 
             if (ev.shiftKey) {
                 Selection.setEnd({
@@ -210,7 +206,7 @@ export class TextEditor {
             this.getLineModelBuffer().setSelected()
         },
         35: (ev) => { // end
-            this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+            this.setColumnBufferPos(this.textBuffer[this.getRowCursorBufferPos()].length)
 
             if (ev.shiftKey) {
                 Selection.setEnd({
@@ -224,7 +220,7 @@ export class TextEditor {
                 })
             }
 
-            const lineLength = this.getBufferColumnToScreenX(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+            const lineLength = this.getBufferColumnToScreenX(this.textBuffer[this.getRowCursorBufferPos()].length)
 
             this.editorContainer.scroll({
                 left: lineLength - this.editorContainer.offsetWidth + this.editorLinesElement.offsetWidth + this.fontWidth * 3
@@ -422,36 +418,29 @@ export class TextEditor {
         const selectionStartColumn = Selection.getStart()[1]
         const selectionEndColumn = Selection.getEnd()[1]
 
-
-
         if (selectionStartRow > selectionEndRow) {
-
-            const startLineData = this.textBuffer.value[selectionStartRow].splice(selectionStartColumn, Infinity)
-
-            for (let index = selectionStartRow; index > selectionEndRow; index--) {
-                this.deleteLineModelBuffer(index)
-                this.decrementLineModelPositions(index)
-                this.textBuffer.value.splice(index, 1)
-            }
-
-            this.textBuffer.value[selectionEndRow].splice(selectionEndColumn, this.textBuffer.value[selectionEndRow].length - selectionEndColumn)
-            this.textBuffer.value[selectionEndRow] = this.textBuffer.value[selectionEndRow].concat(startLineData)
-
-            this.setRowBufferPos(selectionEndRow)
-            this.getLineModelBuffer().update()
-            this.setColumnBufferPos(selectionEndColumn)
-
-            Selection.collapseToEnd()
+            this.editorContainer.addEventListener('scroll-end', () => {
+                // TODO
+                this.setRowBufferPos(selectionEndRow)
+                this.getLineModelBuffer().update()
+                this.setColumnBufferPos(selectionEndColumn)
+                
+                Selection.collapseToEnd()
+            })
+            
+            this.editorContainer.scroll({
+                top: this.getBufferLineToScreenY(selectionEndColumn)
+            })
         }
 
         if (selectionStartRow === selectionEndRow && (selectionStartColumn !== selectionEndColumn)) {
 
             if (selectionStartColumn < selectionEndColumn) {
-                this.textBuffer.value[this.getRowCursorBufferPos()].splice(selectionStartColumn, selectionEndColumn - selectionStartColumn)
+                this.textBuffer[this.getRowCursorBufferPos()].splice(selectionStartColumn, selectionEndColumn - selectionStartColumn)
                 this.getLineModelBuffer().update()
                 this.setColumnBufferPos(selectionStartColumn)
             } else {
-                this.textBuffer.value[this.getRowCursorBufferPos()].splice(selectionEndColumn, selectionStartColumn - selectionEndColumn)
+                this.textBuffer[this.getRowCursorBufferPos()].splice(selectionEndColumn, selectionStartColumn - selectionEndColumn)
                 this.getLineModelBuffer().update()
                 this.setColumnBufferPos(selectionEndColumn)
             }
@@ -460,22 +449,19 @@ export class TextEditor {
         }
 
         if (selectionEndRow > selectionStartRow) {
-            const startLineData = this.textBuffer.value[selectionEndRow].splice(selectionEndColumn, Infinity)
+            this.editorContainer.addEventListener('scroll-end', () => {
+                // TODO
 
-            for (let index = selectionEndRow; index > selectionStartRow; index--) {
-                this.deleteLineModelBuffer(index)
-                this.decrementLineModelPositions(index)
-                this.textBuffer.value.splice(index, 1)
-            }
+                this.setRowBufferPos(selectionStartRow)
+                this.getLineModelBuffer().update()
+                this.setColumnBufferPos(selectionStartColumn)
 
-            this.textBuffer.value[selectionStartRow].splice(selectionStartColumn, Infinity)
-            this.textBuffer.value[selectionStartRow] = this.textBuffer.value[selectionStartRow].concat(startLineData)
+                Selection.collapseToStart()
+            })
 
-            this.setRowBufferPos(selectionStartRow)
-            this.getLineModelBuffer().update()
-            this.setColumnBufferPos(selectionStartColumn)
-
-            Selection.collapseToStart()
+            this.editorContainer.scroll({
+                top: this.getBufferLineToScreenY(selectionStartRow)
+            })
         }
     }
 
@@ -486,26 +472,26 @@ export class TextEditor {
             }
 
             if (this.getRowCursorBufferPos() > 0 && this.getColumnCursorBufferPos() === 0) {
-                const deletedLine = this.textBuffer.value.splice(this.getRowCursorBufferPos(), 1)[0]
+                const deletedLine = this.textBuffer.splice(this.getRowCursorBufferPos(), 1)[0]
                 this.getLineModelBuffer().update()
 
                 this.deleteLineModelBuffer()
                 this.decrementRowBufferPos()
-                this.setColumnBufferPos(this.textBuffer.value[this.getRowCursorBufferPos()].length)
+                this.setColumnBufferPos(this.textBuffer[this.getRowCursorBufferPos()].length)
 
-                this.textBuffer.value[this.getRowCursorBufferPos()] = this.textBuffer.value[this.getRowCursorBufferPos()].concat(deletedLine)
+                this.textBuffer[this.getRowCursorBufferPos()] = this.textBuffer[this.getRowCursorBufferPos()].concat(deletedLine)
 
                 this.getLineModelBuffer().update()
                 this.decrementLineModelPositions()
                 return
             }
 
-            if (this.getColumnCursorBufferPos() < this.textBuffer.value[this.getRowCursorBufferPos()].length) {
-                this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos() - 1, 1)
+            if (this.getColumnCursorBufferPos() < this.textBuffer[this.getRowCursorBufferPos()].length) {
+                this.textBuffer[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos() - 1, 1)
                 this.decrementColumnBufferPos()
                 this.getLineModelBuffer().update()
             } else {
-                this.textBuffer.value[this.getRowCursorBufferPos()].pop()
+                this.textBuffer[this.getRowCursorBufferPos()].pop()
                 this.decrementColumnBufferPos()
                 this.getLineModelBuffer().update()
             }
@@ -516,16 +502,16 @@ export class TextEditor {
 
     static insertLine() {
         const oldLine = this.getLineModelBuffer()
-        const currentDataToConcat = this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), Infinity)
+        const currentDataToConcat = this.textBuffer[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), Infinity)
         oldLine.update()
 
-        this.textBuffer.value.splice(this.getRowCursorBufferPos() + 1, 0, currentDataToConcat)
+        this.textBuffer.splice(this.getRowCursorBufferPos() + 1, 0, currentDataToConcat)
 
 
-        const newLineBuffer = this.textBuffer.value[this.getRowCursorBufferPos() + 1]
+        const newLineBuffer = this.textBuffer[this.getRowCursorBufferPos() + 1]
         const newLineModel = new LineModel(newLineBuffer, this.getRowCursorBufferPos() + 1)
 
-        newLineModel.insertAfter(oldLine)
+        newLineModel.insertToDOM()
 
         this.incrementLineModelPositions()
         this.insertLineModelBuffer(newLineModel)
@@ -576,7 +562,7 @@ export class TextEditor {
 
         newBuffer.forEach((line, index) => {
 
-            this.textBuffer.value[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), 0, ...line)
+            this.textBuffer[this.getRowCursorBufferPos()].splice(this.getColumnCursorBufferPos(), 0, ...line)
             this.setColumnBufferPos(this.getColumnCursorBufferPos() + line.length)
 
             if (newBuffer[index + 1])
@@ -605,25 +591,25 @@ export class TextEditor {
     }
 
     static setColumnBufferPos(pos) {
-        if (pos > this.textBuffer.value[this.getRowCursorBufferPos()].length) {
-            this.cursorBuffer.value[1] = this.textBuffer.value[this.getRowCursorBufferPos()].length
+        if (pos > this.textBuffer[this.getRowCursorBufferPos()].length) {
+            this.cursorBuffer[1] = this.textBuffer[this.getRowCursorBufferPos()].length
         } else {
-            this.cursorBuffer.value[1] = pos
+            this.cursorBuffer[1] = pos
         }
 
         if (pos < 0)
-            this.cursorBuffer.value[1] = 0
+            this.cursorBuffer[1] = 0
 
-        const x = this.fontWidth * this.cursorBuffer.value[1]
+        const x = this.fontWidth * this.cursorBuffer[1]
         this.cursorElement.style.left = `${x}px`
     }
 
     static decrementColumnBufferPos() {
 
-        if (this.cursorBuffer.value[1] <= 0)
+        if (this.cursorBuffer[1] <= 0)
             return 0
 
-        this.cursorBuffer.value[1]--
+        this.cursorBuffer[1]--
 
         const pxFromStyle = Number(this.cursorElement.style.left.split('px')[0])
         const x = pxFromStyle - this.fontWidth
@@ -633,10 +619,10 @@ export class TextEditor {
 
     static incrementColumnBufferPos() {
 
-        if (this.cursorBuffer.value[1] >= this.textBuffer.value[this.cursorBuffer.value[0]].length)
+        if (this.cursorBuffer[1] >= this.textBuffer[this.cursorBuffer[0]].length)
             return
 
-        this.cursorBuffer.value[1]++
+        this.cursorBuffer[1]++
 
         const pxFromStyle = Number(this.cursorElement.style.left.split('px')[0])
         const x = pxFromStyle + this.fontWidth
@@ -647,47 +633,47 @@ export class TextEditor {
     static setRowBufferPos(pos) {
 
         if (pos < 0)
-            this.cursorBuffer.value[0] = 0
+            this.cursorBuffer[0] = 0
 
-        if (pos > this.textBuffer.value.length - 1) {
-            this.cursorBuffer.value[0] = this.textBuffer.value.length - 1
+        if (pos > this.textBuffer.length - 1) {
+            this.cursorBuffer[0] = this.textBuffer.length - 1
         } else {
-            this.cursorBuffer.value[0] = pos
+            this.cursorBuffer[0] = pos
         }
 
 
-        const y = this.LINE_HEIGHT * this.cursorBuffer.value[0]
+        const y = this.LINE_HEIGHT * this.cursorBuffer[0]
         this.cursorElement.style.top = `${y}px`
     }
 
     static decrementRowBufferPos() {
-        if (this.cursorBuffer.value[0] <= 0)
+        if (this.cursorBuffer[0] <= 0)
             return 0
 
 
-        this.cursorBuffer.value[0]--
+        this.cursorBuffer[0]--
 
         const y = this.cursorElement.offsetTop - this.LINE_HEIGHT
         this.cursorElement.style.top = `${y}px`
     }
 
     static incrementRowBufferPos() {
-        if (this.cursorBuffer.value[0] >= this.textBuffer.value.length - 1)
+        if (this.cursorBuffer[0] >= this.textBuffer.length - 1)
             return
 
 
-        this.cursorBuffer.value[0]++
+        this.cursorBuffer[0]++
 
         const y = this.cursorElement.offsetTop + this.LINE_HEIGHT
         this.cursorElement.style.top = `${y}px`
     }
 
     static getRowCursorBufferPos() {
-        return this.cursorBuffer.value[0]
+        return this.cursorBuffer[0]
     }
 
     static getColumnCursorBufferPos() {
-        return this.cursorBuffer.value[1]
+        return this.cursorBuffer[1]
     }
 
     static getScreenYToBuffer(offsetY) {
@@ -770,15 +756,21 @@ export class TextEditor {
         }
     }
 
-    static renderContent() {
+    static renderContent(start = null, end = null) {
         const { extraStart, extraEnd } = this.getExtraViewPortRange()
+
+        if (!start)
+            start = extraStart
+
+        if (!end)
+            end = extraEnd
 
         this.editorElement.innerHTML = ''
         this.editorLinesElement.innerHTML = ''
         this.lineBuffer = []
 
-        for (let index = extraStart; index <= extraEnd; index++) {
-            const row = this.textBuffer.value[index]
+        for (let index = start; index <= end; index++) {
+            const row = this.textBuffer[index]
             const Line = new LineModel(row, index)
 
             Line.insertToDOM()
@@ -788,7 +780,7 @@ export class TextEditor {
 
     static getViewPortRange() {
         const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT))
-        const lastLineOffset = Math.min(this.textBuffer.value.length - 1, Math.ceil((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT))
+        const lastLineOffset = Math.min(this.textBuffer.length - 1, Math.ceil((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT))
 
         return { start: firstLineOffset, end: lastLineOffset }
     }
@@ -797,7 +789,7 @@ export class TextEditor {
         const { start, end } = this.getViewPortRange()
 
         const extraStart = Math.max(0, start - this.EXTRA_BUFFER_ROW_OFFSET)
-        const extraEnd = Math.min(this.textBuffer.value.length - 1, end + this.EXTRA_BUFFER_ROW_OFFSET)
+        const extraEnd = Math.min(this.textBuffer.length - 1, end + this.EXTRA_BUFFER_ROW_OFFSET)
 
         return { extraStart, extraEnd }
     }
@@ -816,7 +808,7 @@ export class TextEditor {
     static renderPureText(buffer = null) {
         let text = '';
 
-        (buffer ?? this.textBuffer.value).forEach(line => {
+        (buffer ?? this.textBuffer).forEach(line => {
             text += `${line.join('')}\n`
         })
 
@@ -824,8 +816,8 @@ export class TextEditor {
     }
 
     static reset() {
-        this.textBuffer.value = [[]]
-        this.cursorBuffer.value = [0, 0]
+        this.textBuffer = [[]]
+        this.cursorBuffer = [0, 0]
         this.lineBuffer = []
         Selection.clear()
     }

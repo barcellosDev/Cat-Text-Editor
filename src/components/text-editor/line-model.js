@@ -42,7 +42,7 @@ export class LineModel {
         if (!this.element.firstElementChild)
             throw new Error()
 
-        const textBufferRowData = TextEditor.textBuffer.value[this.index]
+        const textBufferRowData = TextEditor.textBuffer[this.index]
 
         // trying to update an line that doesnt exists
         // happens in case of deleting the last line (hence trying to update the line after it)
