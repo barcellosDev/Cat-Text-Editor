@@ -1,23 +1,33 @@
 import { TextEditor } from "./text-core"
 import { useFilesStore } from '@/store/files';
-import { useThemesStore } from '@/store/themes';
+import { SHIKI } from "./highlighter";
 
 export class LineModel {
-    element
-    lineCountElement
+    element = null
+    lineCountElement = null
 
     row
     index
 
-    constructor(row, index) {
+    constructor(row, index, isRaw = false) {
         this.row = row
         this.index = index
 
-        this.element = this.buildLine()
-        this.lineCountElement = this.buildLineCount()
+        if (!isRaw) {
+            this.element = this.buildLine()
+            this.lineCountElement = this.buildLineCount()
+        }
+
+        // isRaw means that we are trying to inject another pre computed DOM element
+        // to this object in order to reuse the methods
+        // so the user is obligated to define the this.element and this.lineCountElement outside of this constructor
     }
     
     insertToDOM() {
+        if (this.element === null || this.lineCountElement === null) {
+            throw new Error('HAS TO DEFINE SOME OF THE ESSENTIAL ELEMENTS!')
+        }
+
         TextEditor.editorElement.appendChild(this.element)
         TextEditor.editorLinesElement.appendChild(this.lineCountElement)
     }
@@ -69,6 +79,7 @@ export class LineModel {
     buildLine() {
         const divLine = document.createElement('div')
         divLine.style.lineHeight = `${TextEditor.LINE_HEIGHT}px`
+        divLine.style.minHeight = `${TextEditor.LINE_HEIGHT}px`
         divLine.className = `line`
         divLine.style.top = `${this.index * TextEditor.LINE_HEIGHT}px`
         divLine.setAttribute('buffer-row', this.index)
@@ -80,18 +91,16 @@ export class LineModel {
     }
 
     buildRootSpan(data) {
-        const themesStore = useThemesStore()
+        const filesStore = useFilesStore()
         const spanRoot = document.createElement('span')
-
         spanRoot.className = 'root'
-
+        
         const rowText = data.join('')
 
-        const highLightedText = themesStore.highlightCode(rowText)
-        const parsedHtml = (new DOMParser()).parseFromString(highLightedText, 'text/html')
-        const highLightedCode = parsedHtml.querySelector('code > .line').innerHTML
+        let finalHTML = SHIKI.highlight(rowText, filesStore.getFileExtension())
+        finalHTML = (new DOMParser()).parseFromString(finalHTML, 'text/html').querySelector('.line').innerHTML
 
-        spanRoot.innerHTML = highLightedCode
+        spanRoot.innerHTML = finalHTML
 
         return spanRoot
     }

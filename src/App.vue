@@ -4,8 +4,7 @@ import MainMenu from './components/MainMenu.vue';
 import { onMounted, computed } from 'vue';
 import router from './router';
 import { useFilesStore } from '@/store/files';
-import { useThemesStore } from '@/store/themes';
-
+import { SHIKI } from './components/text-editor/highlighter';
 
 const store = useFilesStore()
 
@@ -17,10 +16,9 @@ const columnPos = computed(() => {
   return store.files[store.selectedFileIndex].cursor[1] + 1
 })
 
-onMounted(async () => {
-  const themesStore = useThemesStore()
-  await themesStore.loadHighlighter()
-
+onMounted(() => {
+  SHIKI.load()
+  
   window.electron.onChangeRoute(path => {
     router.push(path)
   })
@@ -28,6 +26,7 @@ onMounted(async () => {
   window.electron.onNewFile(() => {
     store.newFile()
     router.push('editor')
+    window.dispatchEvent(new Event('tab-change'))
   })
 
   window.electron.onReceiveFile(files => {
@@ -36,11 +35,16 @@ onMounted(async () => {
     })
 
     router.push('editor')
+    window.dispatchEvent(new Event('tab-change'))
   })
 
   window.addEventListener('resize', setMainAppContainerHeight)
 
   setMainAppContainerHeight()
+})
+
+onMounted(() => {
+  console.log('DESMONTADO APP.VUE')
 })
 
 function setMainAppContainerHeight() {
@@ -57,7 +61,7 @@ function setMainAppContainerHeight() {
       <MainMenu></MainMenu>
   
       <div id="main-content" class="dark-mode-color">
-        <router-view :key="store.selectedFileIndex" />
+        <router-view />
       </div>
     </div>
 

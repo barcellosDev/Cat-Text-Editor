@@ -5,7 +5,11 @@ import { useFilesStore } from '@/store/files';
 const store = useFilesStore()
 
 function selectTab(tabIndex) {
+    if (store.selectedFileIndex == tabIndex)
+        return
+    
     store.setFileSelected(tabIndex)
+    window.dispatchEvent(new Event('tab-change'))
 }
 
 function closeTab(tabIndex, isChanged) {

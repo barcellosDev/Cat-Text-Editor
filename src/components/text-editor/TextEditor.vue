@@ -7,10 +7,7 @@ import { useFilesStore } from '@/store/files';
 import { Selection } from "./selection";
 import { LineModel } from "./line-model"
 
-
-
 const filesStore = useFilesStore()
-const selectedFile = filesStore.getSelectedFile()
 
 let textEditorMainContainer
 let editor
@@ -22,6 +19,7 @@ var timeoutHandlerToSaveFileOnMemory
 var canEnterSelectionChange = true
 
 onMounted(() => {
+    TextEditor.createHighLightCodeThreadInstance()
 
     selectionsArea = document.getElementById('selections')
     textEditorMainContainer = document.getElementById('text-editor-main-container')
@@ -194,6 +192,9 @@ onMounted(() => {
                                 if (editor.querySelector(`.line[buffer-row="${index}"]`))
                                     continue
 
+                                    const deletedLine = TextEditor.getDeletedLineInterval(index)
+                                    console.log(deletedLine)
+
                                 const row = TextEditor.textBuffer[index]
                                 const Line = new LineModel(row, index)
 
@@ -225,6 +226,9 @@ onMounted(() => {
                                 if (editor.querySelector(`.line[buffer-row="${index}"]`))
                                     continue
 
+                                    const deletedLine = TextEditor.getDeletedLineInterval(index)
+                                    console.log(deletedLine)
+
                                 const row = TextEditor.textBuffer[index]
                                 const Line = new LineModel(row, index)
 
@@ -253,8 +257,9 @@ onMounted(() => {
                     
                     clearTimeout(scrollDebounceTimeout)
                     scrollDebounceTimeout = setTimeout(() => {
+                        TextEditor.renderContent()
                         textEditorMainContainer.dispatchEvent(new Event('scroll-end'))
-                    }, 150)
+                    }, 200)
                 }
 
                 isTicking = false
@@ -268,21 +273,13 @@ onMounted(() => {
     window.addEventListener('resize', setMainEditorContainerHeight)
     window.addEventListener('resize', setEditorContainerWidth)
     window.addEventListener('ui-change', setEditorDomRect)
-
-    TextEditor.reset()
-
-    if (selectedFile) { // has loaded file        
-        TextEditor.textBuffer = TextEditor.parseText(selectedFile.text)
-
-        document.getElementById('text-editor-content-container').style.height = `${TextEditor.textBuffer.length * TextEditor.LINE_HEIGHT}px`
-
-        TextEditor.renderContent()
-    }
-
+    window.addEventListener('tab-change', onTabChange)
+    
     setEditorDomRect()
     setMainEditorContainerHeight()
     setEditorContainerWidth()
     setEditorWidth()
+    onTabChange()
 })
 
 onUnmounted(() => {
@@ -292,15 +289,36 @@ onUnmounted(() => {
     window.removeEventListener('resize', setMainEditorContainerHeight)
     window.removeEventListener('resize', setEditorContainerWidth)
     window.removeEventListener('ui-change', setEditorDomRect)
-    //textEditorMainContainer.removeEventListener('scroll-end', )
+    window.removeEventListener('tab-change', onTabChange)
+
+    TextEditor.disposeHighLightThread()
 })
+
+function onTabChange() {
+    const selectedFile = filesStore.getSelectedFile()
+
+    if (!selectedFile)
+        return
+
+    TextEditor.reset()
+    TextEditor.textBuffer = TextEditor.parseText(selectedFile.text)
+
+    document.getElementById('text-editor-content-container').style.height = `${TextEditor.textBuffer.length * TextEditor.LINE_HEIGHT}px`
+
+    TextEditor.renderContent()
+
+    setEditorDomRect()
+    setMainEditorContainerHeight()
+    setEditorContainerWidth()
+    setEditorWidth()
+}
 
 function setEditorDomRect() {
     editorDomRect = editor.getBoundingClientRect()
 }
 
 function setEditorWidth() {
-    editor.style.width = `calc(100% + ${textEditorMainContainer.scrollWidth}px)`
+    editor.style.width = `${2 * window.innerWidth}px`
 }
 
 function setEditorContainerWidth() {
@@ -360,6 +378,11 @@ function getLineElementFrom(element) {
 
                 </div>
             </div>
+        </div>
+
+        <div id="scroll-area">
+            <div id="minimap"></div>
+            <div id="scrollbar"></div>
         </div>
     </div>
 </template>

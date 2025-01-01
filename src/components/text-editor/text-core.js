@@ -1,6 +1,8 @@
 import { LineModel } from "./line-model"
 import { useFilesStore } from '@/store/files';
 import { Selection } from "./selection";
+import HightlightCodeWorker from './workers/highlightCodeThread.worker.js'
+
 
 export class TextEditor {
     static editorElement = null
@@ -14,6 +16,8 @@ export class TextEditor {
 
     static IS_SHIFT_KEY_PRESSED = false
 
+    static highLightCodeThreadInstance = null
+
     static config = {
         fontSize: 14,
         fontFamily: 'Consolas'
@@ -26,6 +30,7 @@ export class TextEditor {
     })()
 
     static textBuffer = [[]]
+    static deletedLinesBuffer = new Map()
     static cursorBuffer = [0, 0]
     static lineBuffer = []
 
@@ -197,7 +202,7 @@ export class TextEditor {
             this.handleDelete()
 
             const lastLineBufferRow = this.getMaxRenderedBufferRow()
-            const { end } = TextEditor.getViewPortRange()
+            const { end } = this.getViewPortRange()
 
             if (lastLineBufferRow < end) {
                 this.renderContent()
@@ -386,6 +391,11 @@ export class TextEditor {
     }
 
     static getMaxRenderedBufferRow() {
+        let hasChildren = this.editorElement.children.length > 0
+
+        if (!hasChildren)
+            return
+        
         let max = this.editorElement.querySelector('.line:last-child').getAttribute('buffer-row')
 
         for (let index = 0; index < this.editorElement.children.length; index++) {
@@ -399,6 +409,11 @@ export class TextEditor {
     }
 
     static getMinRenderedBufferRow() {
+        let hasChildren = this.editorElement.children.length > 0
+
+        if (!hasChildren)
+            return
+
         let min = this.editorElement.children[0].getAttribute('buffer-row')
 
         for (let index = 0; index < this.editorElement.children.length; index++) {
@@ -411,6 +426,20 @@ export class TextEditor {
         return Number(min)
     }
 
+    static createDeletedLinesBufferHashMap(interval) {
+        for (let row = interval.start.row; row <= interval.end.row; row++) {
+            if (!this.deletedLinesBuffer.has(row)) {
+                this.deletedLinesBuffer.set(row, []);
+            }
+            this.deletedLinesBuffer.get(row).push({ startCol: interval.start.column, endCol: interval.end.column });
+        }
+    }
+
+    static getDeletedLineInterval(row) {
+        return this.deletedLinesBuffer.get(row)
+    }
+
+
     static handleDeleteWithSelection() {
         const selectionStartRow = Selection.getStart()[0]
         const selectionEndRow = Selection.getEnd()[0]
@@ -419,15 +448,21 @@ export class TextEditor {
         const selectionEndColumn = Selection.getEnd()[1]
 
         if (selectionStartRow > selectionEndRow) {
-            this.editorContainer.addEventListener('scroll-end', () => {
-                // TODO
-                this.setRowBufferPos(selectionEndRow)
-                this.getLineModelBuffer().update()
-                this.setColumnBufferPos(selectionEndColumn)
-                
-                Selection.collapseToEnd()
+
+            this.createDeletedLinesBufferHashMap({
+                start: {row: selectionEndRow, column: Selection.getEnd[1]},
+                end: {row: selectionStartRow, column: Selection.getStart[1]}
             })
-            
+
+            // this.editorContainer.addEventListener('scroll-end', () => {
+            //     // TODO
+            //     this.setRowBufferPos(selectionEndRow)
+            //     this.getLineModelBuffer().update()
+            //     this.setColumnBufferPos(selectionEndColumn)
+
+            //     Selection.collapseToEnd()
+            // })
+
             this.editorContainer.scroll({
                 top: this.getBufferLineToScreenY(selectionEndColumn)
             })
@@ -449,15 +484,22 @@ export class TextEditor {
         }
 
         if (selectionEndRow > selectionStartRow) {
-            this.editorContainer.addEventListener('scroll-end', () => {
-                // TODO
-
-                this.setRowBufferPos(selectionStartRow)
-                this.getLineModelBuffer().update()
-                this.setColumnBufferPos(selectionStartColumn)
-
-                Selection.collapseToStart()
+            this.createDeletedLinesBufferHashMap({
+                start: {row: selectionStartRow, column: Selection.getStart[1]},
+                end: {row: selectionEndRow, column: Selection.getEnd[1]}
             })
+
+            console.log(this.deletedLinesBuffer)
+
+            // this.editorContainer.addEventListener('scroll-end', () => {
+            //     // TODO
+
+            //     this.setRowBufferPos(selectionStartRow)
+            //     this.getLineModelBuffer().update()
+            //     this.setColumnBufferPos(selectionStartColumn)
+
+            //     Selection.collapseToStart()
+            // })
 
             this.editorContainer.scroll({
                 top: this.getBufferLineToScreenY(selectionStartRow)
@@ -677,11 +719,11 @@ export class TextEditor {
     }
 
     static getScreenYToBuffer(offsetY) {
-        return Math.floor(offsetY / TextEditor.LINE_HEIGHT)
+        return Math.floor(offsetY / this.LINE_HEIGHT)
     }
 
     static getScreenXToBuffer(offsetX) {
-        return Math.round(Math.abs(offsetX) / TextEditor.fontWidth)
+        return Math.round(Math.abs(offsetX) / this.fontWidth)
     }
 
     static getBufferLineToScreenY(lineIndex = null) {
@@ -757,6 +799,7 @@ export class TextEditor {
     }
 
     static renderContent(start = null, end = null) {
+        const filesStore = useFilesStore()
         const { extraStart, extraEnd } = this.getExtraViewPortRange()
 
         if (!start)
@@ -769,18 +812,48 @@ export class TextEditor {
         this.editorLinesElement.innerHTML = ''
         this.lineBuffer = []
 
-        for (let index = start; index <= end; index++) {
-            const row = this.textBuffer[index]
-            const Line = new LineModel(row, index)
+        if (this.highLightCodeThreadInstance !== null) {
+            this.highLightCodeThreadInstance.onmessage = (event) => {
+                const html = event.data
+                const codeElement = (new DOMParser()).parseFromString(html, 'text/html').querySelectorAll('code .line')
+                let index = start
 
-            Line.insertToDOM()
-            this.lineBuffer.push(Line)
+                codeElement.forEach(divLine => {
+                    divLine.style.lineHeight = `${this.LINE_HEIGHT}px`
+                    divLine.style.minHeight = `${this.LINE_HEIGHT}px`
+                    divLine.style.top = `${index * this.LINE_HEIGHT}px`
+                    divLine.setAttribute('buffer-row', index)
+
+                    const Line = new LineModel(null, index, true)
+                    Line.element = divLine
+                    Line.lineCountElement = Line.buildLineCount()
+
+                    Line.insertToDOM()
+                    this.lineBuffer.push(Line)
+
+                    index++
+                })
+            }
+    
+            this.highLightCodeThreadInstance.postMessage({
+                data: this.renderPureText(this.textBuffer.slice(start, end)),
+                extension: filesStore.getFileExtension()
+            })
+
+        } else {
+            for (let index = start; index <= end; index++) {
+                const row = this.textBuffer[index]
+                const Line = new LineModel(row, index)
+    
+                Line.insertToDOM()
+                this.lineBuffer.push(Line)
+            }
         }
     }
 
     static getViewPortRange() {
-        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / TextEditor.LINE_HEIGHT))
-        const lastLineOffset = Math.min(this.textBuffer.length - 1, Math.ceil((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / TextEditor.LINE_HEIGHT))
+        const firstLineOffset = Math.max(0, Math.floor(this.editorContainer.scrollTop / this.LINE_HEIGHT))
+        const lastLineOffset = Math.min(this.textBuffer.length - 1, Math.ceil((this.editorContainer.offsetHeight + this.editorContainer.scrollTop) / this.LINE_HEIGHT))
 
         return { start: firstLineOffset, end: lastLineOffset }
     }
@@ -813,6 +886,21 @@ export class TextEditor {
         })
 
         return text
+    }
+
+    static createHighLightCodeThreadInstance() {
+        this.highLightCodeThreadInstance = new HightlightCodeWorker()
+    }
+
+    static disposeHighLightThread() {
+        if (typeof this.highLightCodeThreadInstance?.terminate === 'function') {
+            this.highLightCodeThreadInstance.terminate()
+            this.highLightCodeThreadInstance = null
+            console.log('TERMINOU A THREAD')
+            return true
+        }
+
+        return false
     }
 
     static reset() {

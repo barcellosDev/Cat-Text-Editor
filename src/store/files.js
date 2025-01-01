@@ -46,8 +46,16 @@ export const useFilesStore = defineStore('files', () => {
 
   }
 
-  function getFile(index) {
-    return files.value[index] ?? null
+  function getFile(index = null) {
+    return files.value[index ?? selectedFileIndex.value] ?? null
+  }
+
+  function getFileExtension(index = null) {
+    const file = getFile(index)
+
+    if (!file) return null
+
+    return file.extension
   }
 
   function getSelectedFile() {
@@ -66,6 +74,7 @@ export const useFilesStore = defineStore('files', () => {
     setFileSelected,
     getSelectedFile,
     removeFileRef,
-    newFile
+    newFile,
+    getFileExtension
   }
 })
