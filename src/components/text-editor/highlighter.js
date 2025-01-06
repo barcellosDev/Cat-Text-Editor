@@ -29,14 +29,7 @@ export class SHIKI {
     static highlight(text, extension) {
         return this.shiki.codeToHtml(text, {
             lang: this.fileExtensionToLang[extension],
-            theme: this.selectedThemeName,
-            transformers: [
-                {
-                    line(node) {
-                        node.tagName = 'div'
-                    }
-                }
-            ]
+            theme: this.selectedThemeName
         })
     }
 }

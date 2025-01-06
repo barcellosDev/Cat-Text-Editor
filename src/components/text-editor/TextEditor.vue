@@ -458,10 +458,6 @@ function getLineElementFrom(element) {
     white-space: pre;
 }
 
-.root {
-    margin-right: 10px;
-}
-
 .line-selected {
     outline: 1px solid #404040;
 }

@@ -369,10 +369,6 @@ export class TextEditor {
         return this.lineBuffer.filter(line => line.index == row)[0] ?? null
     }
 
-    static insertLineModelBuffer(lineModel) {
-        this.lineBuffer.push(lineModel)
-    }
-
     static deleteLineModelBuffer(row = null) {
         if (row === null)
             row = this.getRowCursorBufferPos()
@@ -556,7 +552,7 @@ export class TextEditor {
         newLineModel.insertToDOM()
 
         this.incrementLineModelPositions()
-        this.insertLineModelBuffer(newLineModel)
+        this.lineBuffer.push(newLineModel)
 
         this.incrementRowBufferPos()
         this.setColumnBufferPos(0)
@@ -818,18 +814,24 @@ export class TextEditor {
                 const codeElement = (new DOMParser()).parseFromString(html, 'text/html').querySelectorAll('code .line')
                 let index = start
 
-                codeElement.forEach(divLine => {
+                codeElement.forEach(spanRoot => {
+                    const divLine = document.createElement('div')
+                    divLine.className = 'line'
                     divLine.style.lineHeight = `${this.LINE_HEIGHT}px`
                     divLine.style.minHeight = `${this.LINE_HEIGHT}px`
                     divLine.style.top = `${index * this.LINE_HEIGHT}px`
                     divLine.setAttribute('buffer-row', index)
 
-                    const Line = new LineModel(null, index, true)
-                    Line.element = divLine
-                    Line.lineCountElement = Line.buildLineCount()
+                    spanRoot.removeAttribute('class')
 
-                    Line.insertToDOM()
-                    this.lineBuffer.push(Line)
+                    divLine.appendChild(spanRoot)
+
+                    const lineModelObject = new LineModel(null, index, true)
+                    lineModelObject.element = divLine
+                    lineModelObject.lineCountElement = lineModelObject.buildLineCount()
+
+                    lineModelObject.insertToDOM()
+                    this.lineBuffer.push(lineModelObject)
 
                     index++
                 })
