@@ -5,6 +5,7 @@ import EditorTabs from '../EditorTabs.vue';
 import { TextEditor } from './text-core.js'
 import { useFilesStore } from '@/store/files';
 import { Selection } from "./selection";
+import { ScrollBar } from './scrollbar.js'
 import { LineModel } from "./line-model"
 
 const filesStore = useFilesStore()
@@ -22,10 +23,11 @@ onMounted(() => {
     TextEditor.createHighLightCodeThreadInstance()
 
     selectionsArea = document.getElementById('selections')
-    textEditorMainContainer = document.getElementById('text-editor-main-container')
+    textEditorMainContainer = document.getElementById('text-editor-content-wrapper')
     editor = textEditorMainContainer.querySelector('[cat-text-editor]')
     editorLines = textEditorMainContainer.querySelector('#text-editor-lines')
 
+    const scrollArea = document.getElementById('scroll-area')
     const cursor = document.querySelector('.cursor')
     cursor.style.height = `${TextEditor.LINE_HEIGHT}px`
 
@@ -33,7 +35,6 @@ onMounted(() => {
     TextEditor.setEditorContainerElement(textEditorMainContainer)
     TextEditor.setEditorLinesElement(editorLines)
     TextEditor.setCursorElement(cursor)
-
     Selection.setSelectionsAreaElement(selectionsArea)
 
     editor.onmouseup = (ev) => {
@@ -161,141 +162,139 @@ onMounted(() => {
     }
 
 
+    window.addEventListener('resize', onResize)
+    window.addEventListener('ui-change', setEditorDomRect)
+    window.addEventListener('tab-change', onTabChange)
+
+    setEditorDomRect()
+    onTabChange()
+
+    const scrollbar = new ScrollBar(textEditorMainContainer)
+    scrollArea.appendChild(scrollbar.container)
+
+    scrollbar.updateThumbHeight()
+    scrollbar.updateThumbPosition()
 
     let lastScrollTop = 0
     let isTicking = false
-    let lastExecutionTime = 0
     let scrollDebounceTimeout
 
-    const throttleInterval = 30
-
-    textEditorMainContainer.onscroll = () => {
-        const now = Date.now()
-
+    scrollbar.onScroll(() => {
         if (!isTicking) {
             window.requestAnimationFrame(() => {
-                if (now - lastExecutionTime >= throttleInterval) {
-                    const { start, end } = TextEditor.getViewPortRange()
+                const { start, end } = TextEditor.getViewPortRange()
 
-                    const firstLineBufferRow = TextEditor.getMinRenderedBufferRow()
-                    const lastLineBufferRow = TextEditor.getMaxRenderedBufferRow()
+                const firstLineBufferRow = TextEditor.getMinRenderedBufferRow()
+                const lastLineBufferRow = TextEditor.getMaxRenderedBufferRow()
 
-                    const firstSelectionBufferRow = Selection.getMinRenderedBufferRow()
-                    const lastSelectionBufferRow = Selection.getMaxRenderedBufferRow()
+                const firstSelectionBufferRow = Selection.getMinRenderedBufferRow()
+                const lastSelectionBufferRow = Selection.getMaxRenderedBufferRow()
 
-                    if (textEditorMainContainer.scrollTop < lastScrollTop) {
-                        if (start - firstLineBufferRow <= 5) {
+                if (textEditorMainContainer.scrollTop < lastScrollTop) {
+                    if (start - firstLineBufferRow <= 5) {
 
-                            const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
+                        const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
 
-                            for (let index = Math.max(0, firstLineBufferRow - 1); index >= extraStart; index--) {
-                                if (editor.querySelector(`.line[buffer-row="${index}"]`))
-                                    continue
+                        for (let index = Math.max(0, firstLineBufferRow - 1); index >= extraStart; index--) {
+                            if (editor.querySelector(`.line[buffer-row="${index}"]`))
+                                continue
 
-                                    const deletedLine = TextEditor.getDeletedLineInterval(index)
-                                    console.log(deletedLine)
+                            const deletedLine = TextEditor.getDeletedLineInterval(index)
+                            console.log(deletedLine)
 
-                                const row = TextEditor.textBuffer[index]
-                                const Line = new LineModel(row, index)
+                            const row = TextEditor.textBuffer[index]
+                            const Line = new LineModel(row, index)
 
-                                Line.insertToDOM()
-                                TextEditor.lineBuffer.push(Line)
-                            }
-
-                            for (let index = lastLineBufferRow; index > extraEnd; index--) {
-                                TextEditor.deleteLineModelBuffer(index)
-                            }
-
-                            for (let index = lastSelectionBufferRow; index > extraEnd; index--) {
-                                const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
-
-                                if (selectionDiv)
-                                    selectionDiv.remove()
-                            }
-
-                            Selection.render()
+                            Line.insertToDOM()
+                            TextEditor.lineBuffer.push(Line)
                         }
-                    }
 
-                    if (textEditorMainContainer.scrollTop > lastScrollTop) {
-                        if (lastLineBufferRow - end <= 5) {
-
-                            const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
-
-                            for (let index = Math.min(TextEditor.textBuffer.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
-                                if (editor.querySelector(`.line[buffer-row="${index}"]`))
-                                    continue
-
-                                    const deletedLine = TextEditor.getDeletedLineInterval(index)
-                                    console.log(deletedLine)
-
-                                const row = TextEditor.textBuffer[index]
-                                const Line = new LineModel(row, index)
-
-                                Line.insertToDOM()
-                                TextEditor.lineBuffer.push(Line)
-                            }
-
-
-                            for (let index = firstLineBufferRow; index < extraStart; index++) {
-                                TextEditor.deleteLineModelBuffer(index)
-                            }
-
-                            for (let index = firstSelectionBufferRow; index < extraStart; index++) {
-                                const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
-
-                                if (selectionDiv)
-                                    selectionDiv.remove()
-                            }
-
-                            Selection.render()
+                        for (let index = lastLineBufferRow; index > extraEnd; index--) {
+                            TextEditor.deleteLineModelBuffer(index)
                         }
-                    }
 
-                    lastScrollTop = textEditorMainContainer.scrollTop
-                    lastExecutionTime = now
-                    
-                    clearTimeout(scrollDebounceTimeout)
-                    scrollDebounceTimeout = setTimeout(() => {
-                        TextEditor.renderContent()
-                        textEditorMainContainer.dispatchEvent(new Event('scroll-end'))
-                    }, 200)
+                        for (let index = lastSelectionBufferRow; index > extraEnd; index--) {
+                            const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
+
+                            if (selectionDiv)
+                                selectionDiv.remove()
+                        }
+
+                        Selection.render()
+                    }
                 }
+
+                if (textEditorMainContainer.scrollTop > lastScrollTop) {
+                    if (lastLineBufferRow - end <= 5) {
+
+                        const { extraStart, extraEnd } = TextEditor.getExtraViewPortRange()
+
+                        for (let index = Math.min(TextEditor.textBuffer.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
+                            if (editor.querySelector(`.line[buffer-row="${index}"]`))
+                                continue
+
+                            const deletedLine = TextEditor.getDeletedLineInterval(index)
+                            console.log(deletedLine)
+
+                            const row = TextEditor.textBuffer[index]
+                            const Line = new LineModel(row, index)
+
+                            Line.insertToDOM()
+                            TextEditor.lineBuffer.push(Line)
+                        }
+
+
+                        for (let index = firstLineBufferRow; index < extraStart; index++) {
+                            TextEditor.deleteLineModelBuffer(index)
+                        }
+
+                        for (let index = firstSelectionBufferRow; index < extraStart; index++) {
+                            const selectionDiv = selectionsArea.querySelector(`.selected-text[buffer-row="${index}"]`)
+
+                            if (selectionDiv)
+                                selectionDiv.remove()
+                        }
+
+                        Selection.render()
+                    }
+                }
+
+                lastScrollTop = textEditorMainContainer.scrollTop
+
+                clearTimeout(scrollDebounceTimeout)
+                scrollDebounceTimeout = setTimeout(() => {
+                    TextEditor.renderContent()
+                    TextEditor.highLightContent()
+                    textEditorMainContainer.dispatchEvent(new Event('scroll-end'))
+                }, 200)
 
                 isTicking = false
             })
-
         }
 
         isTicking = true
-    }
-
-    window.addEventListener('resize', setMainEditorContainerHeight)
-    window.addEventListener('resize', setEditorContainerWidth)
-    window.addEventListener('ui-change', setEditorDomRect)
-    window.addEventListener('tab-change', onTabChange)
-    
-    setEditorDomRect()
-    setMainEditorContainerHeight()
-    setEditorContainerWidth()
-    setEditorWidth()
-    onTabChange()
+    })
 })
 
 onUnmounted(() => {
     window.onkeydown = null
     document.onselectionchange = null
 
-    window.removeEventListener('resize', setMainEditorContainerHeight)
-    window.removeEventListener('resize', setEditorContainerWidth)
+    window.removeEventListener('resize', onResize)
     window.removeEventListener('ui-change', setEditorDomRect)
     window.removeEventListener('tab-change', onTabChange)
 
     TextEditor.disposeHighLightThread()
 })
 
+function onResize() {
+    TextEditor.renderDimensions()
+}
+
 function onTabChange() {
     const selectedFile = filesStore.getSelectedFile()
+
+    console.log(selectedFile)
 
     if (!selectedFile)
         return
@@ -303,30 +302,16 @@ function onTabChange() {
     TextEditor.reset()
     TextEditor.textBuffer = TextEditor.parseText(selectedFile.text)
 
-    document.getElementById('text-editor-content-container').style.height = `${TextEditor.textBuffer.length * TextEditor.LINE_HEIGHT}px`
-
     TextEditor.renderContent()
+    TextEditor.highLightContent()
+    TextEditor.renderCursor(selectedFile.cursor[0], selectedFile.cursor[1])
 
     setEditorDomRect()
-    setMainEditorContainerHeight()
-    setEditorContainerWidth()
-    setEditorWidth()
+    TextEditor.renderDimensions()
 }
 
 function setEditorDomRect() {
     editorDomRect = editor.getBoundingClientRect()
-}
-
-function setEditorWidth() {
-    editor.style.width = `${2 * window.innerWidth}px`
-}
-
-function setEditorContainerWidth() {
-    textEditorMainContainer.style.width = `${window.innerWidth - Math.abs(textEditorMainContainer.getBoundingClientRect().left)}px`
-}
-
-function setMainEditorContainerHeight() {
-    textEditorMainContainer.style.height = `${window.innerHeight - Math.abs(textEditorMainContainer.getBoundingClientRect().top) - document.getElementById('app-footer').offsetHeight}px`
 }
 
 function setScreenCursorPositionToBuffer(offsetX, offsetY) {
@@ -360,29 +345,27 @@ function getLineElementFrom(element) {
     <EditorTabs></EditorTabs>
 
     <div id="text-editor-main-container">
-        <div id="text-editor-content-container">
-            <div id="text-editor-lines">
-            </div>
 
-            <div id="cat-text-editor-wrapper">
-                <div id="absolute-interactions">
-                    <div id="cursors">
-                        <div class="cursor"></div>
-                    </div>
-                    <div id="selections">
+        <div id="text-editor-content-wrapper">
 
-                    </div>
+            <div id="text-editor-content-container">
+                <div id="text-editor-lines">
                 </div>
-
-                <div cat-text-editor id="text-editor-content">
-
+                <div id="cat-text-editor-wrapper">
+                    <div id="absolute-interactions">
+                        <div id="cursors">
+                            <div class="cursor"></div>
+                        </div>
+                        <div id="selections"></div>
+                    </div>
+                    <div cat-text-editor id="text-editor-content"></div>
                 </div>
             </div>
+
         </div>
 
         <div id="scroll-area">
             <div id="minimap"></div>
-            <div id="scrollbar"></div>
         </div>
     </div>
 </template>
@@ -392,13 +375,23 @@ function getLineElementFrom(element) {
     color: whitesmoke;
     position: relative;
     height: 100%;
-    overflow: scroll;
+    display: flex;
+}
+
+
+#text-editor-main-container ::-webkit-scrollbar {
+    display: none;
 }
 
 #text-editor-content-container {
     position: relative;
     width: 100%;
     display: flex;
+}
+
+#text-editor-content-wrapper {
+    overflow: scroll;
+    height: 100%;
 }
 
 #cat-text-editor-wrapper {
@@ -433,6 +426,37 @@ function getLineElementFrom(element) {
 </style>
 
 <style>
+#scroll-area {
+    display: flex;
+}
+
+#minimap {
+    height: 100%;
+    width: 100px;
+    box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+}
+
+#text-editor-scrollbar {
+    overflow: hidden;
+    width: 10px;
+    height: 100%;
+}
+
+#text-editor-scrollbar-track {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 10px;
+    height: 100%;
+    background: #31363F;
+}
+
+#text-editor-scrollbar-thumb {
+    position: absolute;
+    width: 100%;
+    background: #ffffff44;
+}
+
 .selected-text {
     border-radius: 5px;
     background-color: #569cd64b;

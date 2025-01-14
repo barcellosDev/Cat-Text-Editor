@@ -251,6 +251,7 @@ async function createWindow() {
           name: process.platform === 'win32' ? nodePath.win32.basename(path) : nodePath.posix.basename(path),
           path: path,
           extension: nodePath.extname(path),
+          cursor: [0, 0],
           buffer: {
             start,
             end,

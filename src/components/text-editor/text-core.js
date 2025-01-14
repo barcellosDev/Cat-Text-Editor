@@ -9,31 +9,24 @@ export class TextEditor {
     static editorContainer = null
     static editorLinesElement = null
     static cursorElement = null
-
     static LINE_HEIGHT = 19
     static TAB_VALUE = '  '
     static EXTRA_BUFFER_ROW_OFFSET = 30
-
     static IS_SHIFT_KEY_PRESSED = false
-
     static highLightCodeThreadInstance = null
-
     static config = {
         fontSize: 14,
         fontFamily: 'Consolas'
     }
-
     static fontWidth = (() => {
         const context = document.createElement('canvas').getContext('2d')
         context.font = `${this.config.fontSize}px ${this.config.fontFamily}`
         return context.measureText('A').width
     })()
-
     static textBuffer = [[]]
     static deletedLinesBuffer = new Map()
     static cursorBuffer = [0, 0]
     static lineBuffer = []
-
     static notPrint = {
         16: (ev) => {
             this.IS_SHIFT_KEY_PRESSED = ev.shiftKey
@@ -391,7 +384,7 @@ export class TextEditor {
 
         if (!hasChildren)
             return
-        
+
         let max = this.editorElement.querySelector('.line:last-child').getAttribute('buffer-row')
 
         for (let index = 0; index < this.editorElement.children.length; index++) {
@@ -446,8 +439,8 @@ export class TextEditor {
         if (selectionStartRow > selectionEndRow) {
 
             this.createDeletedLinesBufferHashMap({
-                start: {row: selectionEndRow, column: Selection.getEnd[1]},
-                end: {row: selectionStartRow, column: Selection.getStart[1]}
+                start: { row: selectionEndRow, column: Selection.getEnd[1] },
+                end: { row: selectionStartRow, column: Selection.getStart[1] }
             })
 
             // this.editorContainer.addEventListener('scroll-end', () => {
@@ -481,8 +474,8 @@ export class TextEditor {
 
         if (selectionEndRow > selectionStartRow) {
             this.createDeletedLinesBufferHashMap({
-                start: {row: selectionStartRow, column: Selection.getStart[1]},
-                end: {row: selectionEndRow, column: Selection.getEnd[1]}
+                start: { row: selectionStartRow, column: Selection.getStart[1] },
+                end: { row: selectionEndRow, column: Selection.getEnd[1] }
             })
 
             console.log(this.deletedLinesBuffer)
@@ -795,7 +788,6 @@ export class TextEditor {
     }
 
     static renderContent(start = null, end = null) {
-        const filesStore = useFilesStore()
         const { extraStart, extraEnd } = this.getExtraViewPortRange()
 
         if (!start)
@@ -808,7 +800,35 @@ export class TextEditor {
         this.editorLinesElement.innerHTML = ''
         this.lineBuffer = []
 
+        for (let index = start; index <= end; index++) {
+            const row = this.textBuffer[index]
+            const Line = new LineModel(row, index)
+
+            Line.insertToDOM()
+            this.lineBuffer.push(Line)
+        }
+    }
+
+    static renderCursor(bufferRow, bufferColumn) {
+        this.setRowBufferPos(bufferRow)
+        this.setColumnBufferPos(bufferColumn)
+    }
+
+    static highLightContent(start = null, end = null) {
         if (this.highLightCodeThreadInstance !== null) {
+            const filesStore = useFilesStore()
+            const { extraStart, extraEnd } = this.getExtraViewPortRange()
+
+            if (!start)
+                start = extraStart
+
+            if (!end)
+                end = extraEnd
+
+            this.editorElement.innerHTML = ''
+            this.editorLinesElement.innerHTML = ''
+            this.lineBuffer = []
+
             this.highLightCodeThreadInstance.onmessage = (event) => {
                 const html = event.data
                 const codeElement = (new DOMParser()).parseFromString(html, 'text/html').querySelectorAll('code .line')
@@ -836,20 +856,11 @@ export class TextEditor {
                     index++
                 })
             }
-    
+
             this.highLightCodeThreadInstance.postMessage({
                 data: this.renderPureText(this.textBuffer.slice(start, end)),
                 extension: filesStore.getFileExtension()
             })
-
-        } else {
-            for (let index = start; index <= end; index++) {
-                const row = this.textBuffer[index]
-                const Line = new LineModel(row, index)
-    
-                Line.insertToDOM()
-                this.lineBuffer.push(Line)
-            }
         }
     }
 
@@ -903,6 +914,15 @@ export class TextEditor {
         }
 
         return false
+    }
+
+    static renderDimensions() {
+        const textEditorMainContainer = document.getElementById('text-editor-main-container')
+
+        this.editorElement.style.width = `${2 * window.innerWidth}px`
+        textEditorMainContainer.style.width = this.editorContainer.style.width = `${window.innerWidth - Math.abs(this.editorContainer.getBoundingClientRect().left)}px`
+        textEditorMainContainer.style.height = this.editorContainer.style.height = `${window.innerHeight - Math.abs(this.editorContainer.getBoundingClientRect().top) - document.getElementById('app-footer').offsetHeight}px`
+        document.getElementById('text-editor-content-container').style.height = `${this.textBuffer.length * this.LINE_HEIGHT}px`
     }
 
     static reset() {
