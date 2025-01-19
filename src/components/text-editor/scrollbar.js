@@ -22,7 +22,7 @@ export class ScrollBar {
 
         const container = document.createElement('div')
         container.id = 'text-editor-scrollbar'
-        
+
         const track = this.buildTrack()
         const thumb = this.buildThumb()
 
@@ -37,25 +37,28 @@ export class ScrollBar {
 
         document.addEventListener('mouseup', this.handleMouseUpFn.bind(_this))
         this.thumb.addEventListener('mousedown', this.handleMouseDownFn.bind(_this))
-    }
 
-    onScroll(callback) {
-        const scrollFn = () => {
-            callback()
-        }
-        
         this.scrollableArea.addEventListener('mousemove', (event) => {
             if (!this.isDragging)
                 return
 
-            this.scrollNowTo(event.clientY)
-            scrollFn()
+            const trackRect = this.track.getBoundingClientRect();
+            const newY = event.clientY - trackRect.top;
+            const maxThumbTop = this.track.clientHeight - this.thumb.clientHeight;
+            const thumbTop = Math.min(Math.max(newY, 0), maxThumbTop);
+
+            this.thumb.style.top = `${thumbTop}px`;
+
+            const scrollRatio = thumbTop / maxThumbTop
+            this.textEditorContentContainer.scrollTop = scrollRatio * (this.textEditorContentContainer.scrollHeight - this.textEditorContentContainer.clientHeight)
+
+            this.scrollableArea.dispatchEvent(new Event('on-scroll'))
         })
-        
+
         this.textEditorContentContainer.addEventListener('wheel', () => {
-            scrollFn()
+            this.scrollableArea.dispatchEvent(new Event('on-scroll'))
             this.updateThumbPosition()
-        }, {passive: true})
+        }, { passive: true })
     }
 
     handleMouseUpFn() {
@@ -83,18 +86,10 @@ export class ScrollBar {
     }
 
     scrollNowTo(yCoordinate) {
-        if (!this.isDragging)
-            return
-
-        const trackRect = this.track.getBoundingClientRect();
-        const newY = yCoordinate - trackRect.top;
-        const maxThumbTop = this.track.clientHeight - this.thumb.clientHeight;
-        const thumbTop = Math.min(Math.max(newY, 0), maxThumbTop);
-
-        this.thumb.style.top = `${thumbTop}px`;
-
-        const scrollRatio = thumbTop / maxThumbTop
-        this.textEditorContentContainer.scrollTop = scrollRatio * (this.textEditorContentContainer.scrollHeight - this.textEditorContentContainer.clientHeight)
+        this.textEditorContentContainer.scroll({
+            top: yCoordinate
+        })
+        this.updateThumbPosition()
     }
 
     updateThumbHeight() {
@@ -110,6 +105,11 @@ export class ScrollBar {
         const scrollRatio = this.textEditorContentContainer.scrollTop / (this.textEditorContentContainer.scrollHeight - this.textEditorContentContainer.clientHeight);
         const thumbTop = scrollRatio * (this.track.clientHeight - this.thumb.clientHeight);
         this.thumb.style.top = `${thumbTop}px`;
+    }
+
+    renderDimensions() {
+        this.updateThumbHeight()
+        this.updateThumbPosition()
     }
 
     dispose() {

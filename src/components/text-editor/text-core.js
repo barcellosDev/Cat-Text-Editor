@@ -5,14 +5,16 @@ import HightlightCodeWorker from './workers/highlightCodeThread.worker.js'
 
 
 export class TextEditor {
-    static editorElement = null
-    static editorContainer = null
-    static editorLinesElement = null
-    static cursorElement = null
-    static LINE_HEIGHT = 19
-    static TAB_VALUE = '  '
-    static EXTRA_BUFFER_ROW_OFFSET = 30
-    static IS_SHIFT_KEY_PRESSED = false
+    static editorElement               = null
+    static editorContainer             = null
+    static editorLinesElement          = null
+    static cursorElement               = null
+    static verticalScrollbar           = null
+    static scrollAreaElement           = null
+    static LINE_HEIGHT                 = 19
+    static TAB_VALUE                   = '  '
+    static EXTRA_BUFFER_ROW_OFFSET     = 30
+    static IS_SHIFT_KEY_PRESSED        = false
     static highLightCodeThreadInstance = null
     static config = {
         fontSize: 14,
@@ -24,7 +26,7 @@ export class TextEditor {
         return context.measureText('A').width
     })()
     static textBuffer = [[]]
-    static deletedLinesBuffer = new Map()
+    static deletedLinesIntervalBuffer = []
     static cursorBuffer = [0, 0]
     static lineBuffer = []
     static notPrint = {
@@ -37,6 +39,9 @@ export class TextEditor {
             this.editorContainer.scroll({
                 top: newYOffset
             })
+
+            this.verticalScrollbar.renderDimensions()
+            this.scrollAreaElement.dispatchEvent(new Event('on-scroll'))
 
             const newRowBuffer = this.getScreenYToBuffer(newYOffset)
             this.setRowBufferPos(newRowBuffer)
@@ -75,6 +80,9 @@ export class TextEditor {
             this.editorContainer.scroll({
                 top: newYOffset
             })
+
+            this.verticalScrollbar.renderDimensions()
+            this.scrollAreaElement.dispatchEvent(new Event('on-scroll'))
 
             const newRowBuffer = this.getScreenYToBuffer(newYOffset + this.editorContainer.offsetHeight - this.LINE_HEIGHT)
             this.setRowBufferPos(newRowBuffer)
@@ -193,15 +201,6 @@ export class TextEditor {
         },
         8: () => { // backspace
             this.handleDelete()
-
-            const lastLineBufferRow = this.getMaxRenderedBufferRow()
-            const { end } = this.getViewPortRange()
-
-            if (lastLineBufferRow < end) {
-                this.renderContent()
-            }
-
-            this.getLineModelBuffer().setSelected()
         },
         35: (ev) => { // end
             this.setColumnBufferPos(this.textBuffer[this.getRowCursorBufferPos()].length)
@@ -243,6 +242,30 @@ export class TextEditor {
                 left: 0
             })
         }
+    }
+
+    static setEditorElement(editor) {
+        this.editorElement = editor
+    }
+
+    static setEditorContainerElement(editorContainer) {
+        this.editorContainer = editorContainer
+    }
+
+    static setEditorLinesElement(editorLines) {
+        this.editorLinesElement = editorLines
+    }
+
+    static setCursorElement(cursor) {
+        this.cursorElement = cursor
+    }
+
+    static setVerticalScrollbar(scrollbar) {
+        this.verticalScrollbar = scrollbar
+    }
+
+    static setScrollAreaElement(scrollAreaElement) {
+        this.scrollAreaElement = scrollAreaElement
     }
 
     static controlActions(char) {
@@ -297,25 +320,8 @@ export class TextEditor {
         }
     }
 
-    static setEditorElement(editor) {
-        this.editorElement = editor
-    }
-
-    static setEditorContainerElement(editorContainer) {
-        this.editorContainer = editorContainer
-    }
-
-    static setEditorLinesElement(editorLines) {
-        this.editorLinesElement = editorLines
-    }
-
-    static setCursorElement(cursor) {
-        this.cursorElement = cursor
-    }
-
     static handleInputKeyBoard(ev) {
         ev.preventDefault()
-
 
         const keyCode = ev.keyCode
         let char = ev.key
@@ -415,20 +421,6 @@ export class TextEditor {
         return Number(min)
     }
 
-    static createDeletedLinesBufferHashMap(interval) {
-        for (let row = interval.start.row; row <= interval.end.row; row++) {
-            if (!this.deletedLinesBuffer.has(row)) {
-                this.deletedLinesBuffer.set(row, []);
-            }
-            this.deletedLinesBuffer.get(row).push({ startCol: interval.start.column, endCol: interval.end.column });
-        }
-    }
-
-    static getDeletedLineInterval(row) {
-        return this.deletedLinesBuffer.get(row)
-    }
-
-
     static handleDeleteWithSelection() {
         const selectionStartRow = Selection.getStart()[0]
         const selectionEndRow = Selection.getEnd()[0]
@@ -437,12 +429,6 @@ export class TextEditor {
         const selectionEndColumn = Selection.getEnd()[1]
 
         if (selectionStartRow > selectionEndRow) {
-
-            this.createDeletedLinesBufferHashMap({
-                start: { row: selectionEndRow, column: Selection.getEnd[1] },
-                end: { row: selectionStartRow, column: Selection.getStart[1] }
-            })
-
             // this.editorContainer.addEventListener('scroll-end', () => {
             //     // TODO
             //     this.setRowBufferPos(selectionEndRow)
@@ -452,9 +438,8 @@ export class TextEditor {
             //     Selection.collapseToEnd()
             // })
 
-            this.editorContainer.scroll({
-                top: this.getBufferLineToScreenY(selectionEndColumn)
-            })
+            this.verticalScrollbar.scrollNowTo(this.getBufferLineToScreenY(selectionEndRow))
+            this.highLightContent()
         }
 
         if (selectionStartRow === selectionEndRow && (selectionStartColumn !== selectionEndColumn)) {
@@ -473,13 +458,6 @@ export class TextEditor {
         }
 
         if (selectionEndRow > selectionStartRow) {
-            this.createDeletedLinesBufferHashMap({
-                start: { row: selectionStartRow, column: Selection.getStart[1] },
-                end: { row: selectionEndRow, column: Selection.getEnd[1] }
-            })
-
-            console.log(this.deletedLinesBuffer)
-
             // this.editorContainer.addEventListener('scroll-end', () => {
             //     // TODO
 
@@ -490,9 +468,8 @@ export class TextEditor {
             //     Selection.collapseToStart()
             // })
 
-            this.editorContainer.scroll({
-                top: this.getBufferLineToScreenY(selectionStartRow)
-            })
+            this.verticalScrollbar.scrollNowTo(this.getBufferLineToScreenY(selectionStartRow))
+            this.highLightContent()
         }
     }
 
@@ -766,6 +743,9 @@ export class TextEditor {
                 top: this.editorContainer.scrollTop + this.LINE_HEIGHT
             })
 
+            this.verticalScrollbar.renderDimensions()
+            this.scrollAreaElement.dispatchEvent(new Event('on-scroll'))
+
             this.setRowBufferPos(this.getScreenYToBuffer(this.editorContainer.offsetHeight + this.editorContainer.scrollTop - offsetToScroll))
             this.getLineModelBuffer().setSelected()
         }
@@ -781,6 +761,9 @@ export class TextEditor {
             this.editorContainer.scroll({
                 top: this.editorContainer.scrollTop - this.LINE_HEIGHT
             })
+
+            this.verticalScrollbar.renderDimensions()
+            this.scrollAreaElement.dispatchEvent(new Event('on-scroll'))
 
             this.setRowBufferPos(this.getScreenYToBuffer(this.editorContainer.scrollTop + offsetToScroll))
             this.getLineModelBuffer().setSelected()
@@ -809,9 +792,9 @@ export class TextEditor {
         }
     }
 
-    static renderCursor(bufferRow, bufferColumn) {
-        this.setRowBufferPos(bufferRow)
-        this.setColumnBufferPos(bufferColumn)
+    static renderCursor(bufferCursor) {
+        this.setRowBufferPos(bufferCursor[0])
+        this.setColumnBufferPos(bufferCursor[1])
     }
 
     static highLightContent(start = null, end = null) {

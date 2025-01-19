@@ -35,6 +35,8 @@ onMounted(() => {
     TextEditor.setEditorContainerElement(textEditorMainContainer)
     TextEditor.setEditorLinesElement(editorLines)
     TextEditor.setCursorElement(cursor)
+    TextEditor.setScrollAreaElement(scrollArea)
+
     Selection.setSelectionsAreaElement(selectionsArea)
 
     editor.onmouseup = (ev) => {
@@ -169,17 +171,17 @@ onMounted(() => {
     setEditorDomRect()
     onTabChange()
 
-    const scrollbar = new ScrollBar(textEditorMainContainer)
+    const scrollbar = new ScrollBar()
     scrollArea.appendChild(scrollbar.container)
+    scrollbar.renderDimensions()
 
-    scrollbar.updateThumbHeight()
-    scrollbar.updateThumbPosition()
+    TextEditor.setVerticalScrollbar(scrollbar)
 
     let lastScrollTop = 0
     let isTicking = false
     let scrollDebounceTimeout
 
-    scrollbar.onScroll(() => {
+    scrollArea.addEventListener('on-scroll', (event) => {
         if (!isTicking) {
             window.requestAnimationFrame(() => {
                 const { start, end } = TextEditor.getViewPortRange()
@@ -198,9 +200,6 @@ onMounted(() => {
                         for (let index = Math.max(0, firstLineBufferRow - 1); index >= extraStart; index--) {
                             if (editor.querySelector(`.line[buffer-row="${index}"]`))
                                 continue
-
-                            const deletedLine = TextEditor.getDeletedLineInterval(index)
-                            console.log(deletedLine)
 
                             const row = TextEditor.textBuffer[index]
                             const Line = new LineModel(row, index)
@@ -232,9 +231,6 @@ onMounted(() => {
                         for (let index = Math.min(TextEditor.textBuffer.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
                             if (editor.querySelector(`.line[buffer-row="${index}"]`))
                                 continue
-
-                            const deletedLine = TextEditor.getDeletedLineInterval(index)
-                            console.log(deletedLine)
 
                             const row = TextEditor.textBuffer[index]
                             const Line = new LineModel(row, index)
@@ -274,6 +270,7 @@ onMounted(() => {
 
         isTicking = true
     })
+
 })
 
 onUnmounted(() => {
@@ -304,7 +301,7 @@ function onTabChange() {
 
     TextEditor.renderContent()
     TextEditor.highLightContent()
-    TextEditor.renderCursor(selectedFile.cursor[0], selectedFile.cursor[1])
+    TextEditor.renderCursor(selectedFile.cursor)
 
     setEditorDomRect()
     TextEditor.renderDimensions()
