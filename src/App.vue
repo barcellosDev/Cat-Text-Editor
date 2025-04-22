@@ -1,56 +1,48 @@
 <script setup>
 import { RouterView } from 'vue-router'
 import MainMenu from './components/MainMenu.vue';
-import { onMounted, computed } from 'vue';
+import { onMounted } from 'vue';
 import router from './router';
-import { useFilesStore } from '@/store/files';
-import { SHIKI } from './components/text-editor/highlighter';
+import { SHIKI } from './text-editor/highlighter';
+import { CatApp } from './text-editor/cat-app';
+import { TextEditor } from './text-editor/text-core';
 
-const store = useFilesStore()
-
-const linePos = computed(() => {
-  return store.files[store.selectedFileIndex].cursor[0] + 1
-})
-
-const columnPos = computed(() => {
-  return store.files[store.selectedFileIndex].cursor[1] + 1
-})
 
 onMounted(() => {
   SHIKI.load()
-  
+
   window.electron.onChangeRoute(path => {
     router.push(path)
   })
 
   window.electron.onNewFile(() => {
-    store.newFile()
+    const textEditorInstance = new TextEditor()
+
+    CatApp.editors.push(textEditorInstance)
+    CatApp.activeEditor = textEditorInstance
+
     router.push('editor')
-    window.dispatchEvent(new Event('tab-change'))
+    CatApp.renderTabs()
   })
 
   window.electron.onReceiveFile(files => {
-    files.forEach(fileData => {
-      store.pushFile(fileData)
-    })
+    let textEditorInstance = null
 
-    router.push('editor')
-    window.dispatchEvent(new Event('tab-change'))
+    files.forEach(fileData => {
+      textEditorInstance = new TextEditor(fileData)
+      CatApp.editors.push(textEditorInstance)
+    })
+    
+    if (textEditorInstance) {
+      CatApp.activeEditor = textEditorInstance
+      router.push('editor')
+      CatApp.renderTabs()
+    }
   })
 
-  window.addEventListener('resize', setMainAppContainerHeight)
-
-  setMainAppContainerHeight()
+  window.addEventListener('resize', () => CatApp.setMainAppContainerHeight)
+  CatApp.setMainAppContainerHeight()
 })
-
-onMounted(() => {
-  console.log('DESMONTADO APP.VUE')
-})
-
-function setMainAppContainerHeight() {
-  const appFooter = document.getElementById('app-footer')
-  document.getElementById('main-app-container').style.height = `${window.innerHeight - appFooter.offsetHeight}px`
-}
 
 </script>
 
@@ -59,7 +51,7 @@ function setMainAppContainerHeight() {
 
     <div id="main-app-container">
       <MainMenu></MainMenu>
-  
+
       <div id="main-content" class="dark-mode-color">
         <router-view />
       </div>
@@ -68,8 +60,7 @@ function setMainAppContainerHeight() {
     <div id="app-footer">
       <div id="footer-left"></div>
       <div id="footer-right">
-        <div v-if="store.getSelectedFile()" id="cursor-position">
-          Ln {{ linePos }}, Col {{ columnPos }}
+        <div id="cursor-position">
         </div>
       </div>
     </div>
@@ -85,17 +76,19 @@ body {
   font-family: 'Consolas';
 }
 
-*::-webkit-scrollbar-track {
-    background-color: #31363F;
+*::-webkit-scrollbar-track,
+.custom-scrollbar-track {
+  background-color: #31363F;
 }
 
 *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+  width: 10px;
+  height: 10px;
 }
 
-*::-webkit-scrollbar-thumb {
-    background-color: #ffffff44;
+*::-webkit-scrollbar-thumb,
+.custom-scrollbar-thumb {
+  background-color: #ffffff44;
 }
 
 #app {
@@ -115,6 +108,10 @@ body {
 
 .light-mode-color {
   background-color: #fff2ed;
+}
+
+.hidden {
+  display: none !important;
 }
 </style>
 

@@ -1,54 +1,24 @@
 <script setup>
-import router from '@/router';
-import { useFilesStore } from '@/store/files';
+import { CatApp } from '@/text-editor/cat-app';
+import { onMounted } from 'vue';
 
-const store = useFilesStore()
-
-function selectTab(tabIndex) {
-    if (store.selectedFileIndex == tabIndex)
-        return
-    
-    store.setFileSelected(tabIndex)
-    window.dispatchEvent(new Event('tab-change'))
-}
-
-function closeTab(tabIndex, isChanged) {
-    if (isChanged) {
-        alert('Descartar alterações?')
-    }
-
-    store.removeFileRef(tabIndex)
-
-    if (store.files.length === 0) {
-        router.push('/')
-    }
-}
+onMounted(() => {
+    CatApp.renderTabs()
+})
 
 </script>
 
 <template>
     <div id="text-editor-tabs">
-        
         <div id="group-tabs">
-            <div v-for="(file, index) in store.files" 
-                :key="index" 
-                class="tab" 
-                :class="{'tab-selected': index === store.selectedFileIndex}"
-                @click="selectTab(index)"
-            >
-                <div>{{ file.name }}</div>
-                <i @click.stop="closeTab(index, file.changed)" class="fa-solid tab-close-icon" :class="{'fa-x': !file.changed, 'fa-circle': file.changed}"></i>
-            </div>
         </div>
 
-        <div v-if="store.getSelectedFile()?.path" class="file-path">
-            {{ store.getSelectedFile().path.replaceAll('\\', ' > ') }}
+        <div id="file-path">
         </div>
     </div>
 </template>
 
-<style scoped>
-
+<style>
 #text-editor-tabs {
     color: whitesmoke;
     overflow-x: auto;
@@ -84,7 +54,7 @@ function closeTab(tabIndex, isChanged) {
     background-color: #26282B;
 }
 
-.file-path {
+#file-path {
     padding: 15px 15px 10px 15px;
 }
 

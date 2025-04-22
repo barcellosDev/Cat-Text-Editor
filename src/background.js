@@ -206,58 +206,36 @@ async function createWindow() {
 
     const filePaths = result.filePaths
 
-    const filePromises = filePaths.map(async filePath => {      
+    const filePromises = filePaths.map(async filePath => {
       return await ipcReadFile({path: filePath})
     })
 
     return await Promise.all(filePromises)
   }
 
-  async function ipcReadFile({
-    path = null,
-    start = 0,
-    end = null
-  }) {
-
+  async function ipcReadFile({path = null}) {
     if (!path) {
       throw new Error('Defina um caminho para ler o arquivo')
     }
 
-    if (end === null) {
-      end = utils.convertToBytes(1, 'MB')
-    }
-
     const fileHandler = await open(path, 'r')
-    const stream = fileHandler.createReadStream({
-      encoding: 'utf-8',
-      start,
-      end
-    })
-
-    const fileSize = statSync(path).size
+    const stream = fileHandler.createReadStream({encoding: 'utf-8'})
 
     return new Promise(resolve => {
-      let data = ''
+      const buffer = []
 
       stream.on('data', (chunk) => {
-        data += chunk
+        buffer.push(chunk)
       })
 
       stream.on('end', () => {
         fileHandler.close()
 
         resolve({
-          text: data,
+          buffer,
           name: process.platform === 'win32' ? nodePath.win32.basename(path) : nodePath.posix.basename(path),
           path: path,
           extension: nodePath.extname(path),
-          cursor: [0, 0],
-          buffer: {
-            start,
-            end,
-            remaining: fileSize - stream.bytesRead,
-            total: fileSize
-          }
         })
       })
     })

@@ -18,7 +18,6 @@ function loadConfigurations() {
 
 function updateUi() {
     window.dispatchEvent(new Event('resize'))
-    window.dispatchEvent(new Event('ui-change'))
 }
 
 onUpdated(() => {

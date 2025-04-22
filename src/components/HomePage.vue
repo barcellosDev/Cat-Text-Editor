@@ -1,8 +1,15 @@
 <script setup>
+import { CatApp } from '@/text-editor/cat-app'
+import { TextEditor } from '@/text-editor/text-core'
 import router from '@/router'
-import { useFilesStore } from '@/store/files';
 
-const filesStore = useFilesStore()
+function newFile() {
+    const textEditorInstance = new TextEditor()
+
+    CatApp.editors.push(textEditorInstance)
+    CatApp.activeEditor = textEditorInstance
+    router.push('editor')
+}
 
 function openFile() {
     window.electron.onOpenFile()
@@ -19,9 +26,9 @@ function openFile() {
             </div>
             <div id="links">
                 <p>
-                    <a @click="filesStore.newFile(); router.push('editor')">New file</a>
+                    <a @click="newFile">New file</a>
                 </p>
-                <p><a @click="openFile()">Open existing file</a></p>
+                <p><a @click="openFile">Open existing file</a></p>
             </div>
         </div>
 
