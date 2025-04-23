@@ -21,8 +21,22 @@ export class TextEditor {
         cursorElement: null,
         absoluteInteractions: null,
         selectionArea: null,
-        lineSelected: null
+        lineSelected: null,
+
+        delete() {
+            this.textEditorMainContainer?.remove?.()
+        },
+
+        show() {
+            CatApp.hideEditors()
+            this.textEditorMainContainer?.classList?.remove?.('hidden')
+        },
+        
+        hide() {
+            this.textEditorMainContainer?.classList?.add?.('hidden')
+        }
     }
+    canEnterSelectionChange = true
     TAB_VALUE = '  '
     EXTRA_BUFFER_ROW_OFFSET = 30
     IS_SHIFT_KEY_PRESSED = false
@@ -168,7 +182,7 @@ export class TextEditor {
         },
         38: (ev) => { // arrowUp
             this.cursor.decrementLine()
-            
+
 
             if (this.cursor.getCol() > this.textBuffer[this.cursor.getLine()].length)
                 this.cursor.setCol(this.textBuffer[this.cursor.getLine()].length)
@@ -208,7 +222,7 @@ export class TextEditor {
         },
         40: (ev) => { // arrowDown
             this.cursor.incrementLine()
-            
+
 
             if (this.cursor.getCol() > this.textBuffer[this.cursor.getLine()].length)
                 this.cursor.setCol(this.textBuffer[this.cursor.getLine()].length)
@@ -230,7 +244,7 @@ export class TextEditor {
         },
         13: () => { // enter
             this.insertLine()
-            
+
         },
         8: () => { // backspace
             this.handleDelete()
@@ -291,7 +305,7 @@ export class TextEditor {
         this.fileInfo = fileInfoInstance
     }
 
-    async renderDOM() {
+    renderDOM() {
         const textEditorsArea = document.getElementById('text-editors')
 
         if (!textEditorsArea) {
@@ -301,7 +315,7 @@ export class TextEditor {
         const currentEditor = textEditorsArea.querySelector(`[cat-text-editor="${this.id}"]`)
 
         if (currentEditor) {
-            await this.updateDOM()
+            this.updateDOM()
             return
         }
 
@@ -344,10 +358,14 @@ export class TextEditor {
         this.DOM.lineSelected.style.width = `100%`
 
         this.cursor = new Cursor(this)
+        this.selection = new Selection(this)
+
         textEditorsArea.appendChild(this.DOM.textEditorMainContainer)
 
-        await this.updateDOM()
-        
+        this.DOM.editorElement.style.width = `${2 * window.innerWidth}px`
+
+        this.updateDOM()
+
         this.verticalScrollbar = new ScrollBarVertical(this)
         this.horizontalScrollBar = new ScrollBarHorizontal(this)
 
@@ -376,19 +394,113 @@ export class TextEditor {
             this.horizontalScrollBar.isDragging = false
             document.body.style.userSelect = '';
         })
+
+        const ROWS_GAP_TO_FETCH = 15
+        let lastScrollTop = 0
+        let isTicking = false
+
+        this.verticalScrollbar.container.addEventListener('on-scroll', () => {
+            if (!isTicking) {
+                window.requestAnimationFrame(() => {
+                    const { start, end } = this.getViewPortRange()
+
+                    const firstLineBufferRow = this.getMinRenderedBufferRow()
+                    const lastLineBufferRow = this.getMaxRenderedBufferRow()
+
+                    // if (firstLineBufferRow !== this.lineModelBuffer.keys().next().value) {
+                    //     console.log("FIRST DIFFERENT!!!")
+                    //     console.log("RENDERED: " + firstLineBufferRow)
+                    //     console.log("LINE MODEL: " + this.lineModelBuffer.keys().next().value)
+                    // }
+
+                    // if (lastLineBufferRow !== Array.from(this.lineModelBuffer.keys()).pop()) {
+                    //     console.log("FIRST DIFFERENT!!!")
+                    //     console.log("RENDERED: " + lastLineBufferRow)
+                    //     console.log("LINE MODEL: " + Array.from(this.lineModelBuffer.keys()).pop())
+                    // }
+
+                    const firstSelectionBufferRow = this.selection.getMinRenderedBufferRow()
+                    const lastSelectionBufferRow = this.selection.getMaxRenderedBufferRow()
+
+                    if (this.DOM.textEditorContentWrapper.scrollTop < lastScrollTop) {
+                        if (start - firstLineBufferRow <= ROWS_GAP_TO_FETCH) {
+
+                            const { extraStart, extraEnd } = this.getExtraViewPortRange()
+
+                            for (let index = Math.max(0, firstLineBufferRow); index >= extraStart; index--) {
+                                if (this.DOM.editorElement.querySelector(`.line[buffer-row="${index}"]`))
+                                    continue
+
+                                const content = this.textBuffer.getLineContent(index)
+                                const lineModel = new LineModel(this, content, index)
+                                this.lineModelBuffer.set(index, lineModel)
+                            }
+
+                            for (let index = lastLineBufferRow; index > extraEnd; index--) {
+                                this.deleteLineModelBuffer(index)
+                            }
+
+                            for (let index = lastSelectionBufferRow; index > extraEnd; index--) {
+                                const selectionDiv = this.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${index}"]`)
+
+                                if (selectionDiv)
+                                    selectionDiv.remove()
+                            }
+
+                            this.selection.render()
+                        }
+                    }
+
+                    if (this.DOM.textEditorContentWrapper.scrollTop > lastScrollTop) {
+                        if (lastLineBufferRow - end <= ROWS_GAP_TO_FETCH) {
+                            const lastLineOffsetInBuffer = this.textBuffer.lineCount - 1
+                            const { extraStart, extraEnd } = this.getExtraViewPortRange()
+
+                            for (let index = Math.min(lastLineOffsetInBuffer, lastLineBufferRow); index <= extraEnd; index++) {
+                                if (this.DOM.editorElement.querySelector(`.line[buffer-row="${index}"]`))
+                                    continue
+
+                                if (index > lastLineOffsetInBuffer)
+                                    break
+
+                                const content = this.textBuffer.getLineContent(index)
+                                const lineModel = new LineModel(this, content, index)
+                                this.lineModelBuffer.set(index, lineModel)
+                            }
+
+                            for (let index = firstLineBufferRow; index < extraStart; index++) {
+                                this.deleteLineModelBuffer(index)
+                            }
+
+                            for (let index = firstSelectionBufferRow; index < extraStart; index++) {
+                                const selectionDiv = this.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${index}"]`)
+
+                                if (selectionDiv)
+                                    selectionDiv.remove()
+                            }
+
+                            this.selection.render()
+                        }
+                    }
+
+                    lastScrollTop = this.DOM.textEditorContentWrapper.scrollTop
+                    isTicking = false
+                })
+            }
+
+            isTicking = true
+        })
     }
 
-    async updateDOM() {
-        this.DOM.textEditorMainContainer.classList.remove('hidden')
+    updateDOM() {
+        if (!this.DOM.textEditorMainContainer)
+            return
+        
         this.DOM.textEditorMainContainer.style.width = this.DOM.textEditorContentWrapper.style.width = `${window.innerWidth - Math.abs(this.DOM.textEditorContentWrapper.getBoundingClientRect().left)}px`
         this.DOM.textEditorMainContainer.style.height = this.DOM.textEditorContentWrapper.style.height = `${window.innerHeight - Math.abs(this.DOM.textEditorContentWrapper.getBoundingClientRect().top) - CatApp.getFooter().offsetHeight}px`
-        this.DOM.editorElement.style.width = `${2 * window.innerWidth}px`
         this.DOM.textEditorContentContainer.style.height = `${Math.max(this.textBuffer.lineCount * CatApp.LINE_HEIGHT, this.DOM.textEditorMainContainer.offsetHeight)}px`
-
         this.verticalScrollbar?.updateThumb?.()
         this.horizontalScrollBar?.updateThumb?.()
-
-        await this.renderContent()
     }
 
     // controlActions(char) {
@@ -439,26 +551,152 @@ export class TextEditor {
     //     }
     // }
 
-    onSelectionChange(callback) {
+    onSelectionChange() {
         document.onselectionchange = (ev) => {
+            if (!this.canEnterSelectionChange)
+                return
+
             if (!this.GetParentByClass(ev.target, this.DOM.editorElement.className))
                 return
 
-            callback(ev)
+            const selection = document.getSelection()
+
+            if (!selection.isCollapsed && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0)
+                const rect = range.getBoundingClientRect()
+
+                let selectedTextLeftOffset = rect.left - this.DOM.editorElement.getBoundingClientRect().left + this.DOM.textEditorContentWrapper.scrollLeft
+                let selectedTextRightOffset = rect.right - this.DOM.editorElement.getBoundingClientRect().left + this.DOM.textEditorContentWrapper.scrollLeft
+                let selectedTextTopOffset = rect.top - this.DOM.textEditorContentWrapper.offsetTop + this.DOM.textEditorContentWrapper.scrollTop
+
+                // in case of selecting an empty row (the rect.right/left returns 0 (as if the rect was on the initial edge of the div))
+                if (selectedTextLeftOffset < 0)
+                    selectedTextLeftOffset = 0
+
+                if (selectedTextRightOffset < 0)
+                    selectedTextRightOffset = 0
+
+                if (rect.width === 0 && rect.top === 0)
+                    selectedTextTopOffset = this.getLineElementFrom(range.startContainer).offsetTop
+
+                this.selection.setStart({
+                    row: this.getScreenYToBuffer(selectedTextTopOffset),
+                    column: Math.floor(selectedTextLeftOffset / this.getFontWidth())
+                })
+
+                let newOffsetX = Math.floor(selectedTextRightOffset)
+
+                if (range.endContainer?.classList?.contains('line')) {
+                    const nextRowBufferPosBasedOnInitialPos = this.selection.getStart()[0] + 1
+
+                    if (this.textBuffer[nextRowBufferPosBasedOnInitialPos]) {
+                        this.cursor.setLine(nextRowBufferPosBasedOnInitialPos)
+                        newOffsetX = 0 // first offset of the next line
+                    } else {
+                        // if its the last line, select the current line
+                        newOffsetX = this.getBufferColumnToScreenX(Infinity)
+                    }
+                }
+
+                this.cursor.setCol(this.getScreenXToBuffer(newOffsetX))
+
+                this.selection.setEnd({
+                    row: this.cursor.getLine(),
+                    column: this.cursor.getCol()
+                })
+
+
+
+
+            }
         }
     }
 
-    onMouseRelease(callback) {
-        this.DOM.editorElement.onmouseup = callback
+    onMouseRelease() {
+        this.DOM.editorElement.onmouseup = () => {
+            this.canEnterSelectionChange = true
+
+            this.selection.setEnd({
+                row: this.cursor.getLine(),
+                column: this.cursor.getCol()
+            })
+
+
+        }
         this.DOM.editorElement.onmousemove = null
     }
 
-    onMouseClick(callback) {
-        this.DOM.editorElement.onmousedown = callback
+    onMouseClick() {
+        this.DOM.editorElement.onmousedown = (ev) => {
+
+            const getOffsetTopFromElement = (element) => {
+                let selectedLine = this.getLineElementFrom(element)
+
+                if (!selectedLine) {
+                    selectedLine = this.DOM.editorElement.querySelector(`.line:last-child`)
+                }
+
+                return selectedLine.offsetTop
+            }
+
+            let mouseOffsetX = ev.offsetX
+            let lineOffsetY = getOffsetTopFromElement(ev.target)
+
+            this.setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
+
+
+            if (this.IS_SHIFT_KEY_PRESSED) {
+                this.canEnterSelectionChange = false
+
+                this.selection.setEnd({
+                    column: this.cursor.getCol(),
+                    row: this.cursor.getLine()
+                })
+            } else {
+                this.selection = null
+            }
+
+            this.DOM.editorElement.onmousemove = (ev) => {
+                const selection = window.getSelection()
+                this.canEnterSelectionChange = false
+
+                lineOffsetY = getOffsetTopFromElement(ev.target)
+
+                if (selection.focusNode && !selection.focusNode?.classList?.contains('line')) {
+                    mouseOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * this.getFontWidth())
+                } else if (!selection.focusNode) {
+                    mouseOffsetX = ev.offsetX
+                }
+
+                this.setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
+
+
+
+                this.selection.setEnd({
+                    row: this.cursor.getLine(),
+                    column: this.cursor.getCol()
+                })
+
+
+                CatApp.setCursorPositionInFooter()
+            }
+            CatApp.setCursorPositionInFooter()
+        }
     }
 
-    onMouseMove(callback) {
-        this.DOM.editorElement.onmousemove = callback
+    setScreenCursorPositionToBuffer(offsetX, offsetY) {
+        this.cursor.setLine(this.getScreenYToBuffer(offsetY))
+        this.cursor.setCol(this.getScreenXToBuffer(offsetX))
+    }
+
+    getLineElementFrom(element) {
+        if (element.classList?.contains('line'))
+            return element
+
+        if (!element.parentElement)
+            return null
+
+        return this.getLineElementFrom(element.parentElement)
     }
 
     GetParentByClass(currentElement, cssClass) {
@@ -835,7 +1073,7 @@ export class TextEditor {
             this.verticalScrollbar.container.dispatchEvent(new Event('on-scroll'))
 
             this.cursor.setLine(this.getScreenYToBuffer(this.DOM.textEditorContentWrapper.offsetHeight + this.DOM.textEditorContentWrapper.scrollTop - offsetToScroll))
-            
+
         }
     }
 
@@ -854,7 +1092,7 @@ export class TextEditor {
             this.verticalScrollbar.container.dispatchEvent(new Event('on-scroll'))
 
             this.cursor.setLine(this.getScreenYToBuffer(this.DOM.textEditorContentWrapper.scrollTop + offsetToScroll))
-            
+
         }
     }
 
@@ -885,7 +1123,7 @@ export class TextEditor {
 
     getViewPortRange() {
         const firstLineOffset = Math.max(0, Math.floor(this.DOM.textEditorContentWrapper.scrollTop / CatApp.LINE_HEIGHT))
-        const lastLineOffset = Math.min(Math.max(this.textBuffer.lineCount - 1, 1), Math.ceil((this.DOM.textEditorContentWrapper.offsetHeight + this.DOM.textEditorContentWrapper.scrollTop) / CatApp.LINE_HEIGHT))
+        const lastLineOffset = Math.min(this.textBuffer.lineCount - 1, Math.ceil((this.DOM.textEditorContentWrapper.offsetHeight + this.DOM.textEditorContentWrapper.scrollTop) / CatApp.LINE_HEIGHT))
 
         return { start: firstLineOffset, end: lastLineOffset }
     }
@@ -894,7 +1132,7 @@ export class TextEditor {
         const { start, end } = this.getViewPortRange()
 
         const extraStart = Math.max(0, start - this.EXTRA_BUFFER_ROW_OFFSET)
-        const extraEnd = Math.min(Math.max(this.textBuffer.lineCount - 1, 1), end + this.EXTRA_BUFFER_ROW_OFFSET)
+        const extraEnd = Math.min(this.textBuffer.lineCount - 1, end + this.EXTRA_BUFFER_ROW_OFFSET)
 
         return { extraStart, extraEnd }
     }

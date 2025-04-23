@@ -384,7 +384,7 @@ export class PieceTable {
         return new Promise(resolve => {
             if (CatApp.highLightCodeThread !== null) {
                 if (this.cachedLinesContentHighlighted)
-                    this.cachedLinesContentHighlighted
+                    resolve(this.cachedLinesContentHighlighted)
 
                 CatApp.highLightCodeThread.onmessage = (event) => {
                     const lines = []

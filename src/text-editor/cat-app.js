@@ -63,13 +63,14 @@ export class CatApp {
             return
 
         const groupTabs = tabsWrapperDiv.querySelector('#group-tabs')
-        const filePath = tabsWrapperDiv.querySelector('#file-path')
 
         groupTabs.innerHTML = ''
 
         this.editors.forEach((editor, index) => {
+            const isCurrentEditorActive = editor.id === this.activeEditor.id
             const divTab = document.createElement('div')
-            divTab.className = `tab ${editor.id === this.activeEditor.id ? 'tab-selected' : ''}`
+
+            divTab.className = `tab ${isCurrentEditorActive ? 'tab-selected' : ''}`
             divTab.onclick = () => this.selectTab(index, divTab)
             divTab.innerText = editor.fileInfo.name
 
@@ -84,12 +85,23 @@ export class CatApp {
             groupTabs.appendChild(divTab)
         })
 
+        this.updateCurrentFilePath()
+    }
+
+    static updateCurrentFilePath() {
+        const tabsWrapperDiv = document.getElementById('text-editor-tabs')
+        const filePath = tabsWrapperDiv.querySelector('#file-path')
+
         if (this.activeEditor.fileInfo.path) {
             filePath.style.display = ''
             filePath.innerText = this.activeEditor.fileInfo.path.replaceAll('\\', ' > ')
         } else {
             filePath.style.display = 'none'
         }
+    }
+
+    static hideEditors() {
+        this.editors.forEach(editor => editor.DOM.hide())
     }
 
     static selectTab(index, currentTabElement) {
@@ -110,17 +122,21 @@ export class CatApp {
         
         currentTabElement.classList.add('tab-selected')
 
-        this.editors.forEach((editor, i) => {
-            if (i !== index) {
-                editor.DOM.textEditorMainContainer.classList.add('hidden')
-            }
-        })
-
+        this.hideEditors()
+        
         this.activeEditor = this.editors[index]
         this.activeEditor.renderDOM()
+        this.activeEditor.DOM.show()
+        this.activeEditor.updateDOM()
+
+        this.updateCurrentFilePath()
+
+        if (this.activeEditor.DOM.editorElement.children.length === 0)
+            this.activeEditor.renderContent()
     }
 
     static closeTab(index) {
+        this.editors[index].DOM.delete()
         this.editors.splice(index, 1)
 
         if (this.editors.length === 0) {
@@ -130,22 +146,28 @@ export class CatApp {
 
         if (this.editors[index] !== undefined) {
             this.activeEditor = this.editors[index]
-            this.activeEditor.renderDOM()
             this.renderTabs()
+            this.activeEditor.renderDOM()
+            this.activeEditor.DOM.show()
+            this.activeEditor.renderContent()
             return
         }
         
         if (this.editors[index+1] !== undefined) {
             this.activeEditor = this.editors[index+1]
-            this.activeEditor.renderDOM()
             this.renderTabs()
+            this.activeEditor.renderDOM()
+            this.activeEditor.DOM.show()
+            this.activeEditor.renderContent()
             return
         }
     
         if (this.editors[index-1] !== undefined) {
             this.activeEditor = this.editors[index-1]
-            this.activeEditor.renderDOM()
             this.renderTabs()
+            this.activeEditor.renderDOM()
+            this.activeEditor.DOM.show()
+            this.activeEditor.renderContent()
             return
         }
     }
