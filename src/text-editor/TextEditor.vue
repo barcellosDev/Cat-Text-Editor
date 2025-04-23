@@ -155,10 +155,20 @@ onMounted(async () => {
             window.requestAnimationFrame(() => {
                 const { start, end } = activeEditor.getViewPortRange()
 
-                console.log(activeEditor.lineModelBuffer)
-
                 const firstLineBufferRow = activeEditor.getMinRenderedBufferRow()
                 const lastLineBufferRow = activeEditor.getMaxRenderedBufferRow()
+
+                // if (firstLineBufferRow !== activeEditor.lineModelBuffer.keys().next().value) {
+                //     console.log("FIRST DIFFERENT!!!")
+                //     console.log("RENDERED: " + firstLineBufferRow)
+                //     console.log("LINE MODEL: " + activeEditor.lineModelBuffer.keys().next().value)
+                // }
+
+                // if (lastLineBufferRow !== Array.from(activeEditor.lineModelBuffer.keys()).pop()) {
+                //     console.log("FIRST DIFFERENT!!!")
+                //     console.log("RENDERED: " + lastLineBufferRow)
+                //     console.log("LINE MODEL: " + Array.from(activeEditor.lineModelBuffer.keys()).pop())
+                // }
 
                 const firstSelectionBufferRow = selectionInstance.getMinRenderedBufferRow()
                 const lastSelectionBufferRow = selectionInstance.getMaxRenderedBufferRow()
@@ -168,7 +178,7 @@ onMounted(async () => {
 
                         const { extraStart, extraEnd } = activeEditor.getExtraViewPortRange()
 
-                        for (let index = Math.max(0, firstLineBufferRow - 1); index >= extraStart; index--) {
+                        for (let index = Math.max(0, firstLineBufferRow); index > extraStart; index--) {
                             if (activeEditor.DOM.editorElement.querySelector(`.line[buffer-row="${index}"]`))
                                 continue
 
@@ -194,18 +204,20 @@ onMounted(async () => {
 
                 if (activeEditor.DOM.textEditorContentWrapper.scrollTop > lastScrollTop) {
                     if (lastLineBufferRow - end <= ROWS_GAP_TO_FETCH) {
-
+                        const lastLineOffsetInBuffer = activeEditor.textBuffer.lineCount-1
                         const { extraStart, extraEnd } = activeEditor.getExtraViewPortRange()
 
-                        for (let index = Math.min(activeEditor.textBuffer.length, lastLineBufferRow + 1); index <= extraEnd; index++) {
+                        for (let index = Math.min(lastLineOffsetInBuffer, lastLineBufferRow); index < extraEnd; index++) {
                             if (activeEditor.DOM.editorElement.querySelector(`.line[buffer-row="${index}"]`))
                                 continue
+
+                            if (index > lastLineOffsetInBuffer)
+                                break
 
                             const content = activeEditor.textBuffer.getLineContent(index)
                             const lineModel = new LineModel(activeEditor, content, index)
                             activeEditor.lineModelBuffer.set(index, lineModel)
                         }
-
 
                         for (let index = firstLineBufferRow; index < extraStart; index++) {
                             activeEditor.deleteLineModelBuffer(index)

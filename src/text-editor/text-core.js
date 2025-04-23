@@ -301,7 +301,7 @@ export class TextEditor {
         const currentEditor = textEditorsArea.querySelector(`[cat-text-editor="${this.id}"]`)
 
         if (currentEditor) {
-            this.updateDOM()
+            await this.updateDOM()
             return
         }
 
@@ -346,8 +346,7 @@ export class TextEditor {
         this.cursor = new Cursor(this)
         textEditorsArea.appendChild(this.DOM.textEditorMainContainer)
 
-        this.updateDOM()
-        await this.renderContent()
+        await this.updateDOM()
         
         this.verticalScrollbar = new ScrollBarVertical(this)
         this.horizontalScrollBar = new ScrollBarHorizontal(this)
@@ -379,17 +378,17 @@ export class TextEditor {
         })
     }
 
-    updateDOM() {
+    async updateDOM() {
         this.DOM.textEditorMainContainer.classList.remove('hidden')
-
         this.DOM.textEditorMainContainer.style.width = this.DOM.textEditorContentWrapper.style.width = `${window.innerWidth - Math.abs(this.DOM.textEditorContentWrapper.getBoundingClientRect().left)}px`
         this.DOM.textEditorMainContainer.style.height = this.DOM.textEditorContentWrapper.style.height = `${window.innerHeight - Math.abs(this.DOM.textEditorContentWrapper.getBoundingClientRect().top) - CatApp.getFooter().offsetHeight}px`
-
         this.DOM.editorElement.style.width = `${2 * window.innerWidth}px`
-        this.DOM.textEditorContentContainer.style.height = `${Math.max(Math.max(this.textBuffer.length, 1) * CatApp.LINE_HEIGHT, this.DOM.textEditorMainContainer.offsetHeight)}px`
+        this.DOM.textEditorContentContainer.style.height = `${Math.max(this.textBuffer.lineCount * CatApp.LINE_HEIGHT, this.DOM.textEditorMainContainer.offsetHeight)}px`
 
         this.verticalScrollbar?.updateThumb?.()
         this.horizontalScrollBar?.updateThumb?.()
+
+        await this.renderContent()
     }
 
     // controlActions(char) {
@@ -886,7 +885,7 @@ export class TextEditor {
 
     getViewPortRange() {
         const firstLineOffset = Math.max(0, Math.floor(this.DOM.textEditorContentWrapper.scrollTop / CatApp.LINE_HEIGHT))
-        const lastLineOffset = Math.min(Math.max(this.textBuffer.length - 1, 1), Math.ceil((this.DOM.textEditorContentWrapper.offsetHeight + this.DOM.textEditorContentWrapper.scrollTop) / CatApp.LINE_HEIGHT))
+        const lastLineOffset = Math.min(Math.max(this.textBuffer.lineCount - 1, 1), Math.ceil((this.DOM.textEditorContentWrapper.offsetHeight + this.DOM.textEditorContentWrapper.scrollTop) / CatApp.LINE_HEIGHT))
 
         return { start: firstLineOffset, end: lastLineOffset }
     }
@@ -895,7 +894,7 @@ export class TextEditor {
         const { start, end } = this.getViewPortRange()
 
         const extraStart = Math.max(0, start - this.EXTRA_BUFFER_ROW_OFFSET)
-        const extraEnd = Math.min(Math.max(this.textBuffer.length - 1, 1), end + this.EXTRA_BUFFER_ROW_OFFSET)
+        const extraEnd = Math.min(Math.max(this.textBuffer.lineCount - 1, 1), end + this.EXTRA_BUFFER_ROW_OFFSET)
 
         return { extraStart, extraEnd }
     }

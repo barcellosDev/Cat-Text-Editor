@@ -58,6 +58,7 @@ export class ScrollBarVertical {
             const scrollRatioV = this.textEditor.DOM.textEditorContentWrapper.scrollHeight / this.container.clientHeight;
             this.textEditor.DOM.textEditorContentWrapper.scrollTop = startScrollTop + dy * scrollRatioV;
 
+            this.container.dispatchEvent(new Event('on-scroll'))
             this.updateThumb()
         })
 

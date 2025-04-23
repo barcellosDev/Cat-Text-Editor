@@ -425,7 +425,7 @@ export class PieceTable {
     }
 
     getLineContent(line) {
-        if (this.getCachedLine(line))
+        if (typeof this.getCachedLine(line) === 'string')
             return this.getCachedLine(line)
 
         const { piece, offset } = this.findPieceByLine(line)
