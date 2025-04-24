@@ -4,7 +4,7 @@ import { onMounted, onUnmounted } from 'vue';
 import { CatApp } from './cat-app';
 import EditorTabs from '@/components/EditorTabs.vue';
 
-onMounted(async () => {
+onMounted(() => {
     CatApp.createHighLightCodeThread()
 
     console.log(CatApp.editors)

@@ -72,6 +72,7 @@ export class CatApp {
 
             divTab.className = `tab ${isCurrentEditorActive ? 'tab-selected' : ''}`
             divTab.onclick = () => this.selectTab(index, divTab)
+            divTab.setAttribute('index', index)
             divTab.innerText = editor.fileInfo.name
 
             const iconCloseTab = document.createElement('i')
@@ -131,7 +132,7 @@ export class CatApp {
 
         this.updateCurrentFilePath()
 
-        if (this.activeEditor.DOM.editorElement.children.length === 0)
+        if (this.activeEditor.DOM.editorElement && this.activeEditor.DOM.editorElement.children.length === 0)
             this.activeEditor.renderContent()
     }
 
@@ -144,30 +145,23 @@ export class CatApp {
             return
         }
 
+        this.renderTabs()
+
         if (this.editors[index] !== undefined) {
-            this.activeEditor = this.editors[index]
-            this.renderTabs()
-            this.activeEditor.renderDOM()
-            this.activeEditor.DOM.show()
-            this.activeEditor.renderContent()
+            const currentTab = document.querySelector(`#text-editor-tabs #group-tabs [index="${index}"]`)
+            this.selectTab(index, currentTab)
             return
         }
         
         if (this.editors[index+1] !== undefined) {
-            this.activeEditor = this.editors[index+1]
-            this.renderTabs()
-            this.activeEditor.renderDOM()
-            this.activeEditor.DOM.show()
-            this.activeEditor.renderContent()
+            const currentTab = document.querySelector(`#text-editor-tabs #group-tabs [index="${index+1}"]`)
+            this.selectTab(index+1, currentTab)
             return
         }
     
         if (this.editors[index-1] !== undefined) {
-            this.activeEditor = this.editors[index-1]
-            this.renderTabs()
-            this.activeEditor.renderDOM()
-            this.activeEditor.DOM.show()
-            this.activeEditor.renderContent()
+            const currentTab = document.querySelector(`#text-editor-tabs #group-tabs [index="${index-1}"]`)
+            this.selectTab(index-1, currentTab)
             return
         }
     }

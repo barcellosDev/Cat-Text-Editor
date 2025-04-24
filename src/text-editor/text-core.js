@@ -1109,16 +1109,14 @@ export class TextEditor {
         this.DOM.editorLinesElement.innerHTML = ''
         this.lineModelBuffer.clear()
 
-        const linesContent = await this.textBuffer.getLinesContentHighlighted()
-
         for (let lineIndex = start; lineIndex < end; lineIndex++) {
-            const content = linesContent[lineIndex]
-            // const content = this.textBuffer.getLineContent(lineIndex)
-
-            const lineModel = new LineModel(this, content, lineIndex)
-
+            // const content = linesContent[lineIndex]
+            const content = this.textBuffer.getLineContent(lineIndex)
+            const lineModel = new LineModel(this, content, lineIndex, true)
             this.lineModelBuffer.set(lineIndex, lineModel)
         }
+
+        this.textBuffer.getLinesContentHighlighted()
     }
 
     getViewPortRange() {
