@@ -6,16 +6,7 @@ import EditorTabs from '@/components/EditorTabs.vue';
 
 onMounted(() => {
     CatApp.createHighLightCodeThread()
-
     console.log(CatApp.editors)
-
-    // window.onkeyup = ev => {
-    //     activeEditor.handleReleaseKeyboard(ev)
-    // }
-
-    // window.onkeydown = ev => {
-    //     activeEditor.handleInputKeyBoard(ev)
-    // }
 
     window.addEventListener('resize', onResize)
 })
@@ -119,6 +110,26 @@ function onResize() {
     position: absolute;
 }
 
+
+
+/*
+    TEXT AREA CLASS
+*/
+.text-editor-content-container .input-handler {
+    background-color: transparent;
+    border: none;
+    color: transparent;
+    margin: 0;
+    min-height: 0;
+    min-width: 0;
+    outline: none !important;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    resize: none;
+    z-index: -10;
+    opacity: 0;
+}
 
 
 /*

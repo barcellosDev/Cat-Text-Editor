@@ -22,6 +22,7 @@ export class TextEditor {
         absoluteInteractions: null,
         selectionArea: null,
         lineSelected: null,
+        textAreaToHandleKeyboard: null,
 
         delete() {
             this.textEditorMainContainer?.remove?.()
@@ -362,9 +363,16 @@ export class TextEditor {
 
         textEditorsArea.appendChild(this.DOM.textEditorMainContainer)
 
+        
         this.DOM.editorElement.style.width = `${2 * window.innerWidth}px`
-
         this.updateDOM()
+
+        const textAreaToHandleKeyboard = document.createElement('textarea')
+        textAreaToHandleKeyboard.className = 'input-handler'
+
+        this.DOM.textAreaToHandleKeyboard = textAreaToHandleKeyboard
+        this.DOM.textEditorContentContainer.appendChild(textAreaToHandleKeyboard)
+
 
         this.verticalScrollbar = new ScrollBarVertical(this)
         this.horizontalScrollBar = new ScrollBarHorizontal(this)
@@ -394,6 +402,26 @@ export class TextEditor {
             this.horizontalScrollBar.isDragging = false
             document.body.style.userSelect = '';
         })
+
+        this.DOM.editorElement.addEventListener('click', () => {
+            textAreaToHandleKeyboard.focus()
+        })
+
+        this.DOM.editorElement.addEventListener('focus', () => {
+            textAreaToHandleKeyboard.focus()
+        })
+
+        textAreaToHandleKeyboard.onkeyup = ev => {
+            this.handleReleaseKeyboard(ev)
+            textAreaToHandleKeyboard.value = ''
+        }
+
+        textAreaToHandleKeyboard.onkeydown = ev => {
+            this.handleInputKeyBoard(ev)
+            textAreaToHandleKeyboard.value = ''
+        }
+
+
 
         const ROWS_GAP_TO_FETCH = 15
         let lastScrollTop = 0
@@ -604,10 +632,6 @@ export class TextEditor {
                     row: this.cursor.getLine(),
                     column: this.cursor.getCol()
                 })
-
-
-
-
             }
         }
     }
@@ -627,8 +651,7 @@ export class TextEditor {
     }
 
     onMouseClick() {
-        this.DOM.editorElement.onmousedown = (ev) => {
-
+        this.DOM.editorElement.addEventListener('mousedown', (ev) => {
             const getOffsetTopFromElement = (element) => {
                 let selectedLine = this.getLineElementFrom(element)
 
@@ -681,7 +704,7 @@ export class TextEditor {
                 CatApp.setCursorPositionInFooter()
             }
             CatApp.setCursorPositionInFooter()
-        }
+        })
     }
 
     setScreenCursorPositionToBuffer(offsetX, offsetY) {

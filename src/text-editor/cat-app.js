@@ -1,4 +1,3 @@
-import router from '@/router/index.js'
 import { TextEditor } from './text-core.js'
 import HightlightCodeWorker from './workers/highlightCodeThread.worker.js'
 
@@ -139,13 +138,11 @@ export class CatApp {
     static closeTab(index) {
         this.editors[index].DOM.delete()
         this.editors.splice(index, 1)
+        this.renderTabs()
 
         if (this.editors.length === 0) {
-            router.push('/')
             return
         }
-
-        this.renderTabs()
 
         if (this.editors[index] !== undefined) {
             const currentTab = document.querySelector(`#text-editor-tabs #group-tabs [index="${index}"]`)

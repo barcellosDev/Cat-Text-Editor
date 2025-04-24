@@ -1,41 +1,37 @@
-export class Queue {
+class PriorityQueue {
     constructor() {
-        this.items = [];
+        this.values = []
     }
 
-    enqueue(element) {
-        this.items.push(element);
+    enqueue(node, priority) {
+        let flag = false;
+        
+        for (let i = 0; i < this.values.length; i++) {
+            if (this.values[i].priority < priority) {
+                this.values.splice(i, 0, { node, priority })
+                flag = true
+                break
+            }
+        }
+
+        if (!flag) {
+            this.values.push({ node, priority })
+        }
     }
 
     dequeue() {
-        if (this.isEmpty()) {
-            return null;
-        }
-        return this.items.shift();
-    }
-
-    front() {
-        if (this.isEmpty()) {
-            return null;
-        }
-        return this.items[0];
-    }
-
-    isEmpty() {
-        return this.items.length === 0;
+        return this.values.shift()
     }
 
     size() {
-        return this.items.length;
+        return this.values.length
     }
 }
 
-// // Example usage:
-// const queue = new Queue();
-// queue.enqueue(1);
-// queue.enqueue(2);
-// queue.enqueue(3);
-// console.log(queue.dequeue()); // Output: 1
-// console.log(queue.front());  // Output: 2
-// console.log(queue.isEmpty()); // Output: false
-// console.log(queue.size());    // Output: 2
+var a = new PriorityQueue()
+a.enqueue(10, 1)
+a.enqueue(1, 0)
+a.enqueue(8, 2)
+console.log(a.dequeue())
+console.log(a.dequeue())
+console.log(a.dequeue())

@@ -1,15 +1,10 @@
-import { CatApp } from "./cat-app"
+import { CatApp } from "./cat-app.js"
+import { CharCode } from "./char-codes.js"
 
 const PieceNodeTypes = Object.freeze({
     ORIGINAL: 'original',
     ADDED: 'added'
 })
-
-const CharCode = {
-    LineFeed: 10, // The \n character.
-    CarriageReturn: 13, // The \r character.
-    Tab: 9 // the \t character
-}
 
 class Piece {
     position
