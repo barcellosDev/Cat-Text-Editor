@@ -1,4 +1,5 @@
 import { CatApp } from "./cat-app"
+import { TextEditor } from "./text-core"
 
 export class Cursor {
     line = 0
@@ -6,6 +7,8 @@ export class Cursor {
     element = null
     width = 2
     height = null
+
+    /** @type {TextEditor} */
     textEditor
 
     constructor(textEditor, line = 0, col = 0) {
@@ -51,11 +54,10 @@ export class Cursor {
     }
 
     setLine(line) {
-        if (line < 0)
-            this.line = 0
-
         if (line > this.textEditor.textBuffer.lineCount - 1) {
             this.line = this.textEditor.textBuffer.lineCount - 1
+        } else if (line < 0) {
+            this.line = 0
         } else {
             this.line = line
         }
@@ -66,65 +68,36 @@ export class Cursor {
     }
 
     setCol(col) {
-        if (col > this.textEditor.textBuffer.getLineLength(this.getLine())) {
-            this.col = this.textEditor.textBuffer.getLineLength(this.getLine())
+        const lineLength = this.textEditor.textBuffer.getLineLength(this.getLine())
+
+        if (col > lineLength-1) {
+            this.col = lineLength-1
+        } else if (col < 0) {
+            this.col = 0
         } else {
             this.col = col
         }
-
-        if (col < 0)
-            this.col = 0
 
         const x = CatApp.getFontWidth() * this.col
         this.element.style.left = `${x}px`
     }
 
     decrementLine() {
-        if (this.line <= 0)
-            return 0
-
-        this.line--
-
-        const y = this.element.offsetTop - CatApp.LINE_HEIGHT
-        this.element.style.top = `${y}px`
-
+        this.setLine(--this.line)
         this.updateLineSelectedPosition()
     }
 
     incrementLine() {
-        if (this.line >= this.textEditor.textBuffer.lineCount - 1)
-            return
-
-        this.line++
-
-        const y = this.element.offsetTop + CatApp.LINE_HEIGHT
-        this.element.style.top = `${y}px`
-
+        this.setLine(++this.line)
         this.updateLineSelectedPosition()
     }
 
     decrementCol() {
-        if (this.col <= 0)
-            return 0
-
-        this.col--
-
-        const pxFromStyle = Number(this.element.style.left.split('px')[0])
-        const x = pxFromStyle - CatApp.getFontWidth()
-
-        this.element.style.left = `${x}px`
+        this.setCol(--this.col)
     }
 
     incrementCol() {
-        if (this.col >= this.textEditor.textBuffer.getLineLength(this.getLine()))
-            return
-
-        this.col++
-
-        const pxFromStyle = Number(this.element.style.left.split('px')[0])
-        const x = pxFromStyle + CatApp.getFontWidth()
-
-        this.element.style.left = `${x}px`
+        this.setCol(++this.col)
     }
 
     setWidth(width) {

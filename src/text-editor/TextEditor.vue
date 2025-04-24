@@ -6,6 +6,9 @@ import EditorTabs from '@/components/EditorTabs.vue';
 
 onMounted(() => {
     CatApp.createHighLightCodeThread()
+    CatApp.renderTabs()
+    CatApp.activeEditor.show()
+    
     console.log(CatApp.editors)
 
     window.addEventListener('resize', onResize)

@@ -32,7 +32,7 @@ export class TextEditor {
             CatApp.hideEditors()
             this.textEditorMainContainer?.classList?.remove?.('hidden')
         },
-        
+
         hide() {
             this.textEditorMainContainer?.classList?.add?.('hidden')
         }
@@ -363,7 +363,7 @@ export class TextEditor {
 
         textEditorsArea.appendChild(this.DOM.textEditorMainContainer)
 
-        
+
         this.DOM.editorElement.style.width = `${2 * window.innerWidth}px`
         this.updateDOM()
 
@@ -403,7 +403,7 @@ export class TextEditor {
             document.body.style.userSelect = '';
         })
 
-        this.DOM.editorElement.addEventListener('click', () => {
+        this.DOM.editorElement.addEventListener('mousedown', () => {
             textAreaToHandleKeyboard.focus()
         })
 
@@ -421,7 +421,124 @@ export class TextEditor {
             textAreaToHandleKeyboard.value = ''
         }
 
+        document.addEventListener('selectionchange', (ev) => {
+            if (!this.canEnterSelectionChange)
+                return
 
+            if (!this.GetParentByClass(ev.target, this.DOM.editorElement.className))
+                return
+
+            const selection = document.getSelection()
+
+            if (!selection.isCollapsed && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0)
+                const rect = range.getBoundingClientRect()
+
+                let selectedTextLeftOffset = rect.left - this.DOM.editorElement.getBoundingClientRect().left + this.DOM.textEditorContentWrapper.scrollLeft
+                let selectedTextRightOffset = rect.right - this.DOM.editorElement.getBoundingClientRect().left + this.DOM.textEditorContentWrapper.scrollLeft
+                let selectedTextTopOffset = rect.top - this.DOM.textEditorContentWrapper.offsetTop + this.DOM.textEditorContentWrapper.scrollTop
+
+                // in case of selecting an empty row (the rect.right/left returns 0 (as if the rect was on the initial edge of the div))
+                if (selectedTextLeftOffset < 0)
+                    selectedTextLeftOffset = 0
+
+                if (selectedTextRightOffset < 0)
+                    selectedTextRightOffset = 0
+
+                if (rect.width === 0 && rect.top === 0)
+                    selectedTextTopOffset = this.getLineElementFrom(range.startContainer).offsetTop
+
+                this.selection.setStart({
+                    row: this.getScreenYToBuffer(selectedTextTopOffset),
+                    column: Math.floor(selectedTextLeftOffset / this.getFontWidth())
+                })
+
+                let newOffsetX = Math.floor(selectedTextRightOffset)
+
+                if (range.endContainer?.classList?.contains('line')) {
+                    const nextRowBufferPosBasedOnInitialPos = this.selection.getStart()[0] + 1
+
+                    if (this.textBuffer[nextRowBufferPosBasedOnInitialPos]) {
+                        this.cursor.setLine(nextRowBufferPosBasedOnInitialPos)
+                        newOffsetX = 0 // first offset of the next line
+                    } else {
+                        // if its the last line, select the current line
+                        newOffsetX = this.getBufferColumnToScreenX(Infinity)
+                    }
+                }
+
+                this.cursor.setCol(this.getScreenXToBuffer(newOffsetX))
+
+                this.selection.setEnd({
+                    row: this.cursor.getLine(),
+                    column: this.cursor.getCol()
+                })
+            }
+        })
+
+        this.DOM.editorElement.addEventListener('mouseup', () => {
+            this.canEnterSelectionChange = true
+
+            // this.selection.setEnd({
+            //     row: this.cursor.getLine(),
+            //     column: this.cursor.getCol()
+            // })
+
+            this.DOM.editorElement.onmousemove = null
+        })
+
+        this.DOM.editorElement.addEventListener('mousedown', (ev) => {
+            const getOffsetTopFromElement = (element) => {
+                let selectedLine = this.getLineElementFrom(element)
+
+                if (!selectedLine) {
+                    selectedLine = this.DOM.editorElement.querySelector(`.line:last-child`)
+                }
+
+                return selectedLine.offsetTop
+            }
+
+            let mouseOffsetX = ev.offsetX
+            let lineOffsetY = getOffsetTopFromElement(ev.target)
+
+            this.setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
+
+
+            if (this.IS_SHIFT_KEY_PRESSED) {
+                this.canEnterSelectionChange = false
+
+                this.selection.setEnd({
+                    column: this.cursor.getCol(),
+                    row: this.cursor.getLine()
+                })
+            } else {
+                this.selection = null
+            }
+
+            this.DOM.editorElement.onmousemove = (ev) => {
+                const selection = window.getSelection()
+                this.canEnterSelectionChange = false
+
+                lineOffsetY = getOffsetTopFromElement(ev.target)
+
+                if (selection.focusNode && !selection.focusNode?.classList?.contains('line')) {
+                    mouseOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * this.getFontWidth())
+                } else if (!selection.focusNode) {
+                    mouseOffsetX = ev.offsetX
+                }
+
+                this.setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
+
+                this.selection.setEnd({
+                    row: this.cursor.getLine(),
+                    column: this.cursor.getCol()
+                })
+
+
+                CatApp.setCursorPositionInFooter()
+            }
+            CatApp.setCursorPositionInFooter()
+        })
 
         const ROWS_GAP_TO_FETCH = 15
         let lastScrollTop = 0
@@ -523,12 +640,23 @@ export class TextEditor {
     updateDOM() {
         if (!this.DOM.textEditorMainContainer)
             return
-        
+
         this.DOM.textEditorMainContainer.style.width = this.DOM.textEditorContentWrapper.style.width = `${window.innerWidth - Math.abs(this.DOM.textEditorContentWrapper.getBoundingClientRect().left)}px`
         this.DOM.textEditorMainContainer.style.height = this.DOM.textEditorContentWrapper.style.height = `${window.innerHeight - Math.abs(this.DOM.textEditorContentWrapper.getBoundingClientRect().top) - CatApp.getFooter().offsetHeight}px`
         this.DOM.textEditorContentContainer.style.height = `${Math.max(this.textBuffer.lineCount * CatApp.LINE_HEIGHT, this.DOM.textEditorMainContainer.offsetHeight)}px`
         this.verticalScrollbar?.updateThumb?.()
         this.horizontalScrollBar?.updateThumb?.()
+    }
+
+    show() {
+        CatApp.hideEditors()
+        CatApp.updateCurrentFilePath()
+        this.renderDOM()
+        this.DOM.show()
+        this.updateDOM()
+
+        if (this.DOM.editorElement && this.DOM.editorElement.children.length === 0)
+            this.renderContent()
     }
 
     // controlActions(char) {
@@ -578,134 +706,6 @@ export class TextEditor {
     //         })
     //     }
     // }
-
-    onSelectionChange() {
-        document.onselectionchange = (ev) => {
-            if (!this.canEnterSelectionChange)
-                return
-
-            if (!this.GetParentByClass(ev.target, this.DOM.editorElement.className))
-                return
-
-            const selection = document.getSelection()
-
-            if (!selection.isCollapsed && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0)
-                const rect = range.getBoundingClientRect()
-
-                let selectedTextLeftOffset = rect.left - this.DOM.editorElement.getBoundingClientRect().left + this.DOM.textEditorContentWrapper.scrollLeft
-                let selectedTextRightOffset = rect.right - this.DOM.editorElement.getBoundingClientRect().left + this.DOM.textEditorContentWrapper.scrollLeft
-                let selectedTextTopOffset = rect.top - this.DOM.textEditorContentWrapper.offsetTop + this.DOM.textEditorContentWrapper.scrollTop
-
-                // in case of selecting an empty row (the rect.right/left returns 0 (as if the rect was on the initial edge of the div))
-                if (selectedTextLeftOffset < 0)
-                    selectedTextLeftOffset = 0
-
-                if (selectedTextRightOffset < 0)
-                    selectedTextRightOffset = 0
-
-                if (rect.width === 0 && rect.top === 0)
-                    selectedTextTopOffset = this.getLineElementFrom(range.startContainer).offsetTop
-
-                this.selection.setStart({
-                    row: this.getScreenYToBuffer(selectedTextTopOffset),
-                    column: Math.floor(selectedTextLeftOffset / this.getFontWidth())
-                })
-
-                let newOffsetX = Math.floor(selectedTextRightOffset)
-
-                if (range.endContainer?.classList?.contains('line')) {
-                    const nextRowBufferPosBasedOnInitialPos = this.selection.getStart()[0] + 1
-
-                    if (this.textBuffer[nextRowBufferPosBasedOnInitialPos]) {
-                        this.cursor.setLine(nextRowBufferPosBasedOnInitialPos)
-                        newOffsetX = 0 // first offset of the next line
-                    } else {
-                        // if its the last line, select the current line
-                        newOffsetX = this.getBufferColumnToScreenX(Infinity)
-                    }
-                }
-
-                this.cursor.setCol(this.getScreenXToBuffer(newOffsetX))
-
-                this.selection.setEnd({
-                    row: this.cursor.getLine(),
-                    column: this.cursor.getCol()
-                })
-            }
-        }
-    }
-
-    onMouseRelease() {
-        this.DOM.editorElement.onmouseup = () => {
-            this.canEnterSelectionChange = true
-
-            this.selection.setEnd({
-                row: this.cursor.getLine(),
-                column: this.cursor.getCol()
-            })
-
-
-        }
-        this.DOM.editorElement.onmousemove = null
-    }
-
-    onMouseClick() {
-        this.DOM.editorElement.addEventListener('mousedown', (ev) => {
-            const getOffsetTopFromElement = (element) => {
-                let selectedLine = this.getLineElementFrom(element)
-
-                if (!selectedLine) {
-                    selectedLine = this.DOM.editorElement.querySelector(`.line:last-child`)
-                }
-
-                return selectedLine.offsetTop
-            }
-
-            let mouseOffsetX = ev.offsetX
-            let lineOffsetY = getOffsetTopFromElement(ev.target)
-
-            this.setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
-
-
-            if (this.IS_SHIFT_KEY_PRESSED) {
-                this.canEnterSelectionChange = false
-
-                this.selection.setEnd({
-                    column: this.cursor.getCol(),
-                    row: this.cursor.getLine()
-                })
-            } else {
-                this.selection = null
-            }
-
-            this.DOM.editorElement.onmousemove = (ev) => {
-                const selection = window.getSelection()
-                this.canEnterSelectionChange = false
-
-                lineOffsetY = getOffsetTopFromElement(ev.target)
-
-                if (selection.focusNode && !selection.focusNode?.classList?.contains('line')) {
-                    mouseOffsetX = selection.focusNode.parentElement.offsetLeft + (selection.focusOffset * this.getFontWidth())
-                } else if (!selection.focusNode) {
-                    mouseOffsetX = ev.offsetX
-                }
-
-                this.setScreenCursorPositionToBuffer(mouseOffsetX, lineOffsetY)
-
-
-
-                this.selection.setEnd({
-                    row: this.cursor.getLine(),
-                    column: this.cursor.getCol()
-                })
-
-
-                CatApp.setCursorPositionInFooter()
-            }
-            CatApp.setCursorPositionInFooter()
-        })
-    }
 
     setScreenCursorPositionToBuffer(offsetX, offsetY) {
         this.cursor.setLine(this.getScreenYToBuffer(offsetY))

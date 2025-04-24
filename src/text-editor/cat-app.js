@@ -92,7 +92,7 @@ export class CatApp {
         const tabsWrapperDiv = document.getElementById('text-editor-tabs')
         const filePath = tabsWrapperDiv.querySelector('#file-path')
 
-        if (this.activeEditor.fileInfo.path) {
+        if (this.activeEditor && this.activeEditor.fileInfo.path) {
             filePath.style.display = ''
             filePath.innerText = this.activeEditor.fileInfo.path.replaceAll('\\', ' > ')
         } else {
@@ -122,17 +122,8 @@ export class CatApp {
         
         currentTabElement.classList.add('tab-selected')
 
-        this.hideEditors()
-        
         this.activeEditor = this.editors[index]
-        this.activeEditor.renderDOM()
-        this.activeEditor.DOM.show()
-        this.activeEditor.updateDOM()
-
-        this.updateCurrentFilePath()
-
-        if (this.activeEditor.DOM.editorElement && this.activeEditor.DOM.editorElement.children.length === 0)
-            this.activeEditor.renderContent()
+        this.activeEditor.show()
     }
 
     static closeTab(index) {

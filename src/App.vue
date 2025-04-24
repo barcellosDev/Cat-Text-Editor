@@ -15,19 +15,13 @@ onMounted(() => {
     router.push(path)
   })
 
-  window.electron.onNewFile(async () => {
+  window.electron.onNewFile(() => {
     const textEditorInstance = new TextEditor()
 
     CatApp.editors.push(textEditorInstance)
     CatApp.activeEditor = textEditorInstance
 
-    await router.push('editor')
-
-    CatApp.renderTabs()
-    CatApp.hideEditors()
-    CatApp.activeEditor.renderDOM()
-    CatApp.activeEditor.DOM.show()
-    CatApp.activeEditor.renderContent()
+    router.push('editor')
   })
 
   window.electron.onReceiveFile(async files => {
@@ -40,14 +34,7 @@ onMounted(() => {
     
     if (textEditorInstance instanceof TextEditor) {
       CatApp.activeEditor = textEditorInstance
-
-      await router.push('editor')
-
-      CatApp.renderTabs()
-      CatApp.hideEditors()
-      CatApp.activeEditor.renderDOM()
-      CatApp.activeEditor.DOM.show()
-      CatApp.activeEditor.renderContent()
+      router.push('editor')
     }
   })
 
