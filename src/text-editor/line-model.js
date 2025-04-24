@@ -33,17 +33,6 @@ export class LineModel {
         this.lineCountElement.remove()
     }
 
-    setSelected() {
-        const currentLineSelected = this.textEditor.DOM.editorElement.querySelector('.line-selected')
-        currentLineSelected?.classList?.remove?.('line-selected')
-
-        const currentLineCountSelected = this.textEditor.DOM.editorLinesElement.querySelector('.line-count-selected')
-        currentLineCountSelected?.classList?.remove?.('line-count-selected')
-
-        this.lineElement.classList.add('line-selected')
-        this.lineCountElement.classList.add('line-count-selected')
-    }
-
     update() {
         if (!this.lineElement.firstElementChild)
             throw new Error()

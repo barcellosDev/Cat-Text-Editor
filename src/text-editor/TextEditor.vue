@@ -2,9 +2,13 @@
 
 import { onMounted, onUnmounted } from 'vue';
 import { CatApp } from './cat-app';
+import router from '@/router';
 import EditorTabs from '@/components/EditorTabs.vue';
 
 onMounted(() => {
+    if (!CatApp.activeEditor)
+        router.push('/')
+
     CatApp.createHighLightCodeThread()
     CatApp.renderTabs()
     CatApp.activeEditor.show()

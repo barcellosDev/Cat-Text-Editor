@@ -417,11 +417,16 @@ export class PieceTable {
 
             offset += piece.lineFeedCount
         }
+
+        return null
     }
 
     getLineContent(line) {
         if (typeof this.getCachedLine(line) === 'string')
             return this.getCachedLine(line)
+
+        if (line >= this.lineCount)
+            return null
 
         const { piece, offset } = this.findPieceByLine(line)
         const buffer = this.buffers[piece.position.type][piece.position.bufferIndex]
@@ -441,6 +446,9 @@ export class PieceTable {
     getLineLength(line) {
         if (this.cachedLinesContent[line])
             return this.cachedLinesContent[line].length
+
+        if (line >= this.lineCount)
+            return null
 
         const { piece, offset } = this.findPieceByLine(line)
         const buffer = this.buffers[piece.position.type][piece.position.bufferIndex]

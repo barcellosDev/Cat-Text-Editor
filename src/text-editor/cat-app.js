@@ -6,7 +6,7 @@ export class CatApp {
     static editors = []
 
     /** @type {TextEditor} */
-    static activeEditor
+    static activeEditor = null
     
     static config = {
         fontSize: 14,

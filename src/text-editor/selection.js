@@ -1,7 +1,10 @@
 import { CatApp } from "./cat-app"
+import { TextEditor } from "./text-core"
 
 export class Selection {
     buffer = [[], []]
+
+    /** @type {TextEditor} */
     textEditor
 
     constructor(textEditor) {
@@ -65,10 +68,10 @@ export class Selection {
                 let selectionDiv = this.textEditor.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${row}"]`)
                 let newLeft = 0
 
-                const lineLength = this.textEditor.textBuffer[row].length
-                let newWidth = lineLength === 0 ? this.textEditor.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
-
+                const lineLength = this.textEditor.textBuffer.getLineLength(row)
                 const newTop = this.textEditor.getBufferLineToScreenY(row)
+
+                let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
 
                 if (row === this.getStart()[0]) {
                     newLeft = this.textEditor.getBufferColumnToScreenX(this.getStart()[1])
@@ -101,9 +104,9 @@ export class Selection {
             for (let row = start; row > end; row--) {
                 let selectionDiv = this.textEditor.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${row}"]`)
 
-                const lineLength = this.textEditor.textBuffer[row].length
+                const lineLength = this.textEditor.textBuffer.getLineLength(row)
                 let newLeft = 0
-                let newWidth = lineLength === 0 ? this.textEditor.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
+                let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
                 const newTop = this.textEditor.getBufferLineToScreenY(row)
 
                 if (row === this.getStart()[0]) {
@@ -138,7 +141,7 @@ export class Selection {
 
             if (this.isReversed()) {
                 left = this.textEditor.getBufferColumnToScreenX()
-                width = this.textEditor.getBufferColumnToScreenX(this.textEditor.textBuffer[this.textEditor.cursor.getLine()].length) - left
+                width = this.textEditor.getBufferColumnToScreenX(this.textEditor.textBuffer.getLineLength(this.textEditor.cursor.getLine())) - left
             }
         }
 
@@ -224,6 +227,7 @@ export class Selection {
     collapseToStart() {
         this.textEditor.DOM.selectionArea.innerHTML = ''
         window.getSelection().removeAllRanges()
+
         this.buffer[1] = this.buffer[0]
         this.textEditor.cursor.setLine(this.getStart()[0])
         this.textEditor.cursor.setCol(this.getStart()[1])
@@ -267,5 +271,10 @@ export class Selection {
         }
 
         return Number(min)
+    }
+
+    clear() {
+        this.buffer = [[], []]
+        this.textEditor.DOM.selectionArea.innerHTML = ''
     }
 }
