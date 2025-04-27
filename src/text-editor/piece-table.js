@@ -182,16 +182,18 @@ export class PieceTable {
                     const currentPieceNewStartLine = currentPiece.start.line + newStartLineFeedCount
                     const currentPieceNewStartColumn = (currentPieceStartOriginalOffset + localIndex) - buffer.lineStarts[currentPieceNewStartLine]
 
-                    const currentPieceEndNewSubstring = buffer.buffer.substring(buffer.lineStarts[currentPieceNewStartLine], buffer.lineStarts[currentPieceNewStartLine] + remaining)
+                    const newStartOffset = buffer.lineStarts[currentPieceNewStartLine] + currentPieceNewStartColumn
+
+                    const currentPieceEndNewSubstring = buffer.buffer.substring(newStartOffset, newStartOffset + remaining)
                     const newLineFeedCount = (currentPieceEndNewSubstring.match(/\n/g) || []).length
 
-                    const currentPieceEndNewColumn = remaining - buffer.lineStarts[newLineFeedCount]
+                    const currentPieceEndNewColumn = newStartOffset + remaining - buffer.lineStarts[newStartLineFeedCount + newLineFeedCount]
 
 
                     newPieces.push(new Piece(
                         currentPiece.position,
                         { line: currentPieceNewStartLine, column: currentPieceNewStartColumn },
-                        { line: newLineFeedCount, column: currentPieceEndNewColumn },
+                        { line: newStartLineFeedCount + newLineFeedCount, column: currentPieceEndNewColumn },
                         newLineFeedCount,
                         remaining
                     ))
@@ -425,18 +427,48 @@ export class PieceTable {
         if (typeof this.getCachedLine(line) === 'string')
             return this.getCachedLine(line)
 
-        if (line >= this.lineCount)
-            return null
-
-        const { piece, offset } = this.findPieceByLine(line)
-        const buffer = this.buffers[piece.position.type][piece.position.bufferIndex]
+        const { piece, offset, index } = this.findPieceByLine(line)
 
         line -= offset
 
-        const lineStartAtOffset = buffer.lineStarts[line]
-        const lineEndsAtOffset = buffer.lineStarts[line + 1]
+        let chunk = this.buffers[piece.position.type][piece.position.bufferIndex]
 
-        return buffer.buffer.substring(lineStartAtOffset, lineEndsAtOffset).replace(/\n/g, '')
+        let content = ''
+
+        if (line == piece.end.line) {
+            content += chunk.buffer.substring(chunk.lineStarts[piece.end.line], chunk.lineStarts[piece.end.line] + piece.end.column)
+
+            for (let i = index + 1; i < this.pieces.length; i++) {
+                const currentPiece = this.pieces[i]
+                chunk = this.buffers[currentPiece.position.type][currentPiece.position.bufferIndex]
+
+                const buffer = chunk.buffer
+                const lineStarts = chunk.lineStarts
+
+                const pieceStartLine = currentPiece.start.line
+                const pieceStartCol = currentPiece.start.column
+
+                const pieceEndLine = currentPiece.end.line
+                const pieceStartOffset = lineStarts[pieceStartLine] + pieceStartCol
+
+                if (pieceStartLine === pieceEndLine) {
+                    // no new lines
+                    content += buffer.substring(pieceStartOffset, pieceStartOffset + currentPiece.length)
+                    continue
+                }
+
+                content += buffer.substring(pieceStartOffset, lineStarts[currentPiece.start.line + 1])
+
+                if (content.match(/\n/g).length > 0) {
+                    break
+                }
+            }
+        } else {
+            chunk = this.buffers[piece.position.type][piece.position.bufferIndex]
+            content += chunk.buffer.substring(chunk.lineStarts[line], chunk.lineStarts[line + 1])
+        }
+
+        return content.replace(/\n/g, '')
     }
 
     getCachedLine(line) {
@@ -444,21 +476,13 @@ export class PieceTable {
     }
 
     getLineLength(line) {
-        if (this.cachedLinesContent[line])
+        if (typeof this.cachedLinesContent[line] === 'string')
             return this.cachedLinesContent[line].length
 
         if (line >= this.lineCount)
             return null
 
-        const { piece, offset } = this.findPieceByLine(line)
-        const buffer = this.buffers[piece.position.type][piece.position.bufferIndex]
-
-        line -= offset
-
-        const lineStartAtOffset = buffer.lineStarts[line]
-        const lineEndsAtOffset = buffer.lineStarts[line + 1]
-
-        return lineEndsAtOffset - lineStartAtOffset
+        return this.getLineContent(line).length
     }
 
     getText() {
@@ -479,5 +503,25 @@ export class PieceTable {
 
         this.lineCount = lineCount
         this.length = length
+    }
+
+    getLineColumnToBufferOffset(line, col) {
+        let offset = 0
+        let lineFeedCount = 0
+        let foundPiece = null
+
+        for (const piece of this.pieces) {
+            if (line > lineFeedCount && line <= lineFeedCount + piece.lineFeedCount) {
+                foundPiece = piece
+                break
+            }
+
+            offset += piece.length
+            lineFeedCount += piece.lineFeedCount
+        }
+
+        const buffer = this.buffers[foundPiece.position.type][foundPiece.position.bufferIndex]
+
+        return offset + buffer.lineStarts[line - lineFeedCount] + col
     }
 }
