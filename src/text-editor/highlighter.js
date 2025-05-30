@@ -18,12 +18,8 @@ export class SHIKI {
                 themes: [this.selectedThemeName],
                 langs: ['javascript', 'php', 'html']
             })
-
-            console.log('LOADED SHIKI')
             return
         }
-
-        console.log('ALREADY LOADED SHIKI')
     }
 
     static highlight(text, extension) {

@@ -45,6 +45,11 @@ export class Cursor {
         this.textEditor.DOM.lineSelected.style.top = `${this.line * CatApp.LINE_HEIGHT}px`
     }
 
+    updateTextAreaToHandleKeyboardPosition() {
+        this.textEditor.DOM.textAreaToHandleKeyboard.style.top = `${this.line * CatApp.LINE_HEIGHT}px`
+        this.textEditor.DOM.textAreaToHandleKeyboard.style.left = `${this.col * CatApp.getFontWidth()}px`
+    }
+
     getLine() {
         return this.line
     }
@@ -65,10 +70,12 @@ export class Cursor {
         const y = CatApp.LINE_HEIGHT * this.line
         this.element.style.top = `${y}px`
         this.updateLineSelectedPosition()
+        this.updateTextAreaToHandleKeyboardPosition()
     }
 
     setCol(col) {
-        const lineLength = this.textEditor.textBuffer.getLineLength(this.getLine())
+        const currentLineModel = this.textEditor.getLineModel(this.line)
+        const lineLength = currentLineModel.content.length
 
         if (col > lineLength-1) {
             this.col = lineLength-1
@@ -80,6 +87,7 @@ export class Cursor {
 
         const x = CatApp.getFontWidth() * this.col
         this.element.style.left = `${x}px`
+        this.updateTextAreaToHandleKeyboardPosition()
     }
 
     decrementLine() {

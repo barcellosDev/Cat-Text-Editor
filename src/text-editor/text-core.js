@@ -38,10 +38,14 @@ export class TextEditor {
         }
     }
     canEnterSelectionChange = true
-    TAB_VALUE = '  '
+    TAB_VALUE = '&nbsp;&nbsp;&nbsp;&nbsp;'
     EXTRA_BUFFER_ROW_OFFSET = 30
     IS_SHIFT_KEY_PRESSED = false
     deletedLinesIntervalBuffer = {}
+
+    currentLineintermediaryBuffer = null
+    intermediaryBufferToInsertAtPiece = ''
+    timeoutBatchInput = null
 
     /** @type {PieceTable} */
     textBuffer = null
@@ -227,10 +231,6 @@ export class TextEditor {
 
             this.scrollDownWhenCursorGetNextToBottom()
         },
-        13: () => { // enter
-            this.insertLine()
-
-        },
         8: () => { // backspace
             this.handleDelete()
         },
@@ -354,7 +354,7 @@ export class TextEditor {
         textAreaToHandleKeyboard.className = 'input-handler'
 
         this.DOM.textAreaToHandleKeyboard = textAreaToHandleKeyboard
-        this.DOM.textEditorContentContainer.appendChild(textAreaToHandleKeyboard)
+        this.DOM.absoluteInteractions.appendChild(textAreaToHandleKeyboard)
 
 
         this.verticalScrollbar = new ScrollBarVertical(this)
@@ -386,7 +386,7 @@ export class TextEditor {
             document.body.style.userSelect = '';
         })
 
-        this.DOM.editorElement.addEventListener('mousedown', () => {
+        this.DOM.editorElement.addEventListener('click', () => {
             textAreaToHandleKeyboard.focus()
         })
 
@@ -537,19 +537,6 @@ export class TextEditor {
 
                     const firstLineBufferRow = this.getMinRenderedBufferRow()
                     const lastLineBufferRow = this.getMaxRenderedBufferRow()
-
-                    // if (firstLineBufferRow !== this.lineModelBuffer.keys().next().value) {
-                    //     console.log("FIRST DIFFERENT!!!")
-                    //     console.log("RENDERED: " + firstLineBufferRow)
-                    //     console.log("LINE MODEL: " + this.lineModelBuffer.keys().next().value)
-                    // }
-
-                    // if (lastLineBufferRow !== Array.from(this.lineModelBuffer.keys()).pop()) {
-                    //     console.log("FIRST DIFFERENT!!!")
-                    //     console.log("RENDERED: " + lastLineBufferRow)
-                    //     console.log("LINE MODEL: " + Array.from(this.lineModelBuffer.keys()).pop())
-                    // }
-
                     const firstSelectionBufferRow = this.selection.getMinRenderedBufferRow()
                     const lastSelectionBufferRow = this.selection.getMaxRenderedBufferRow()
 
@@ -645,53 +632,47 @@ export class TextEditor {
             this.renderContent()
     }
 
-    // controlActions(char) {
-    //     if (char === 's') {
-    //         const fileData = JSON.stringify(store.getSelectedFile())
+    controlActions(char) {
+        if (char === 's') {
+            //
+        }
 
-    //         window.electron.onSaveFile(fileData, (file) => {
-    //             if (file) {
+        if (char === 'c' || char === 'x') {
+            const selectedData = window.getSelection().toString()
+            navigator.clipboard.writeText(selectedData)
 
-    //             }
-    //         })
-    //     }
+            if (char === 'x' && selectedData.length > 0)
+                this.handleDelete()
+        }
 
-    //     if (char === 'c' || char === 'x') {
-    //         const selectedData = window.getSelection().toString()
-    //         navigator.clipboard.writeText(selectedData)
+        if (char === 'v') {
+            navigator.clipboard.readText().then(text => {
+                this.insertText(text)
+            })
+        }
 
-    //         if (char === 'x' && selectedData.length > 0)
-    //             this.handleDelete()
-    //     }
+        if (char === 'a') {
+            const selection = window.getSelection()
+            const range = document.createRange()
 
-    //     if (char === 'v') {
-    //         navigator.clipboard.readText().then(text => {
-    //             this.insertText(text)
-    //         })
-    //     }
+            selection.removeAllRanges()
 
-    //     if (char === 'a') {
-    //         const selection = window.getSelection()
-    //         const range = document.createRange()
+            range.setStartBefore(this.DOM.editorElement.firstElementChild)
+            range.setEndAfter(this.DOM.editorElement.lastElementChild)
 
-    //         selection.removeAllRanges()
+            selection.addRange(range)
 
-    //         range.setStartBefore(this.DOM.editorElement.firstElementChild)
-    //         range.setEndAfter(this.DOM.editorElement.lastElementChild)
+            this.selection.setStart({ row: 0, column: 0 })
 
-    //         selection.addRange(range)
+            this.cursor.setLine(Infinity)
+            this.cursor.setCol(Infinity)
 
-    //         this.selection.setStart({ row: 0, column: 0 })
-
-    //         this.cursor.setLine(Infinity)
-    //         this.cursor.setCol(Infinity)
-
-    //         this.selection.setEnd({
-    //             row: this.cursor.getLine(),
-    //             column: this.cursor.getCol()
-    //         })
-    //     }
-    // }
+            this.selection.setEnd({
+                row: this.cursor.getLine(),
+                column: this.cursor.getCol()
+            })
+        }
+    }
 
     setScreenCursorPositionToBuffer(offsetX, offsetY) {
         this.cursor.setLine(this.getScreenYToBuffer(offsetY))
@@ -768,7 +749,6 @@ export class TextEditor {
         }
 
         this.insertText(char)
-        this.getLineModel().update()
     }
 
     handleReleaseKeyboard(ev) {
@@ -921,77 +901,118 @@ export class TextEditor {
         }
     }
 
-    insertLine() {
-        const oldLine = this.getLineModel()
-        const currentDataToConcat = this.textBuffer[this.cursor.getLine()].splice(this.cursor.getCol(), Infinity)
-        oldLine.update()
+    incrementLineModelPositions(indexToStart = null, offset = 1) {
+        for (let index = this.lineModelBuffer.size-1; index > (indexToStart ?? this.cursor.getLine()); index--) {
+            const lineModel = this.lineModelBuffer.get(index)
+            const newBufferRow = Number(lineModel.lineElement.getAttribute('buffer-row')) + offset
 
-        this.textBuffer.splice(this.cursor.getLine() + 1, 0, currentDataToConcat)
+            this.lineModelBuffer.delete(index)
 
+            lineModel.lineElement.setAttribute('buffer-row', newBufferRow)
+            lineModel.lineElement.style.top = `${lineModel.lineElement.offsetTop + CatApp.LINE_HEIGHT * offset}px`
 
-        const newLineBuffer = this.textBuffer[this.cursor.getLine() + 1]
-        const newLineModel = new LineModel(newLineBuffer, this.cursor.getLine() + 1)
+            lineModel.lineCountElement.style.top = `${lineModel.lineCountElement.offsetTop + CatApp.LINE_HEIGHT * offset}px`
+            lineModel.lineCountElement.innerText = lineModel.index + 1 + offset
 
-        this.incrementLineModelPositions()
-        this.lineModelBuffer.push(newLineModel)
-
-        this.cursor.incrementLine()
-        this.cursor.setCol(0)
+            this.lineModelBuffer.set(newBufferRow, lineModel)
+        }
     }
 
-    incrementLineModelPositions(indexToStart = null) {
-        this.lineModelBuffer
-            .filter(line => line.index > (indexToStart ?? this.cursor.getLine()))
-            .forEach(line => {
-                const newBufferRow = Number(line.element.getAttribute('buffer-row')) + 1
-                line.index = newBufferRow
+    decrementLineModelPositions(indexToStart = null, offset = 1) {
+        for (let index = (indexToStart ?? this.cursor.getLine()); index < this.lineModelBuffer.size; index++) {
+            const lineModel = this.lineModelBuffer.get(index + 1)
+            const newBufferRow = Number(lineModel.lineElement.getAttribute('buffer-row')) - offset
 
-                line.element.setAttribute('buffer-row', newBufferRow)
-                line.element.style.top = `${line.element.offsetTop + CatApp.LINE_HEIGHT}px`
+            this.lineModelBuffer.delete(index)
 
-                line.lineCountElement.style.top = `${line.lineCountElement.offsetTop + CatApp.LINE_HEIGHT}px`
-                line.lineCountElement.innerText = line.index + 1
-            })
-    }
+            lineModel.lineElement.setAttribute('buffer-row', newBufferRow)
+            lineModel.lineElement.style.top = `${lineModel.lineElement.offsetTop - CatApp.LINE_HEIGHT * offset}px`
 
-    decrementLineModelPositions(indexToStart = null) {
-        this.lineModelBuffer
-            .filter(line => line.index > (indexToStart ?? this.cursor.getLine()))
-            .forEach(line => {
-                const newBufferRow = Number(line.element.getAttribute('buffer-row')) - 1
-                line.index = newBufferRow
+            lineModel.lineCountElement.style.top = `${lineModel.lineCountElement.offsetTop - CatApp.LINE_HEIGHT * offset}px`
+            lineModel.lineCountElement.innerText = lineModel.index+1 - offset
 
-                line.element.setAttribute('buffer-row', newBufferRow)
-                line.element.style.top = `${line.element.offsetTop - CatApp.LINE_HEIGHT}px`
-
-                line.lineCountElement.style.top = `${line.lineCountElement.offsetTop - CatApp.LINE_HEIGHT}px`
-                line.lineCountElement.innerText = line.index + 1
-            })
+            this.lineModelBuffer.set(newBufferRow, lineModel)
+        }
     }
 
     insertText(text) {
-
         // if has selection, replace all the selected text with the typed char
         // that is, delete the selected data (call handleDelete) and insert the char
-        if (!this.selection.isCollapsed()) {
-            this.handleDelete()
+        //if (!this.selection.isCollapsed()) {
+        //    this.handleDelete()
+        //}
+
+        this.intermediaryBufferToInsertAtPiece += text
+        const textLineFeedCount = (text.match(/\n/g) || []).length
+        const lineBeforeInsert = this.cursor.getLine()
+        const columnBeforeInsert = this.cursor.getCol()
+
+        // enter or copied many lines
+        if (textLineFeedCount > 0) {
+            const { extraStart, extraEnd } = this.getExtraViewPortRange()
+            let currentLineModel = this.getLineModel(lineBeforeInsert)
+            let currentLineModelContent = currentLineModel.content.split('')
+            const currentLineModelContentAfterCursor = currentLineModelContent.splice(columnBeforeInsert)
+
+            if (lineBeforeInsert + textLineFeedCount > extraEnd) {
+                // the lines inserted perpasses the extra range of the viewport
+                const newScreenY = this.getBufferLineToScreenY(lineBeforeInsert + textLineFeedCount)
+                this.verticalScrollbar.scrollNowTo(newScreenY)
+
+            } else {
+                // lines inserted is inside the viewport
+                // lines are in the beggining or the middle of the viewport
+                // the viewport is small enough for us to do a .split operation, it will be fast and practical
+
+                this.incrementLineModelPositions(lineBeforeInsert, textLineFeedCount)
+                const arrayOfLines = text.split(/\r\n|\r|\n/)
+
+                const firstLineContent = arrayOfLines[0]
+                currentLineModelContent.splice(columnBeforeInsert, 0, firstLineContent)
+                currentLineModel.update(currentLineModelContent.join('').replace(/\r\n|\r|\n/, ''))
+
+                for (let index = 1; index < arrayOfLines.length; index++) {
+                    const content = arrayOfLines[index]
+                    const newLineIndex = lineBeforeInsert + index
+                    const lineModel = new LineModel(this, content, newLineIndex, true)
+                    this.lineModelBuffer.set(newLineIndex, lineModel)
+                }
+            }
+
+            this.cursor.setLine(lineBeforeInsert + textLineFeedCount)
+            currentLineModel = this.getLineModel(this.cursor.getLine())
+            this.cursor.setCol(currentLineModel.content.length)
+
+            currentLineModel.update(currentLineModel.content += currentLineModelContentAfterCursor.join(''))
+
+        } else {
+            const lineModel = this.getLineModel(lineBeforeInsert)
+
+            if (this.currentLineintermediaryBuffer === null) {
+                this.currentLineintermediaryBuffer = lineModel.content.split('')
+            }
+
+            this.currentLineintermediaryBuffer.splice(columnBeforeInsert, 0, text)
+            lineModel.update(this.currentLineintermediaryBuffer.join(''))
+            this.cursor.setCol(columnBeforeInsert + text.length)
         }
 
-        const newBuffer = this.parseText(text)
+        clearTimeout(this.timeoutBatchInput)
+        this.timeoutBatchInput = setTimeout(() => {
+            // TIMEOUT TO INSERT TEXT TO PIECE TABLE
+            // THIS IS A BATCH TYPING METHOD
 
-        newBuffer.forEach((line, index) => {
+            console.log(this.intermediaryBufferToInsertAtPiece)
+            console.log(this.currentLineintermediaryBuffer)
 
-            this.textBuffer[this.cursor.getLine()].splice(this.cursor.getCol(), 0, ...line)
-            this.cursor.setCol(this.cursor.getCol() + line.length)
+            const documentOffset = this.textBuffer.getLineColumnToBufferOffset(lineBeforeInsert, columnBeforeInsert)
+            this.textBuffer.insert(documentOffset, this.intermediaryBufferToInsertAtPiece)
 
-            if (newBuffer[index + 1])
-                this.insertLine()
-            else
-                this.getLineModel().update()
+            this.highlightContent().then(() => this.updateDOM())
 
-        })
-
-
+            this.intermediaryBufferToInsertAtPiece = ''
+            this.currentLineintermediaryBuffer = null
+        }, 500)
     }
 
     isCharValid(keyCode) {
@@ -1109,13 +1130,27 @@ export class TextEditor {
         this.lineModelBuffer.clear()
 
         for (let lineIndex = start; lineIndex < end; lineIndex++) {
-            // const content = linesContent[lineIndex]
             const content = this.textBuffer.getLineContent(lineIndex)
             const lineModel = new LineModel(this, content, lineIndex, true)
             this.lineModelBuffer.set(lineIndex, lineModel)
         }
+    }
 
-        this.textBuffer.getLinesContentHighlighted()
+    async highlightContent() {
+        const { extraStart, extraEnd } = this.getExtraViewPortRange()
+        const lines = await this.textBuffer.getLinesContentHighlighted()
+
+        for (let lineIndex = extraStart; lineIndex < extraEnd; lineIndex++) {
+            const content = lines[lineIndex]
+            let lineModel = this.lineModelBuffer.get(lineIndex)
+
+            if (!lineModel) {
+                lineModel = new LineModel(this, content, lineIndex)
+                this.lineModelBuffer.set(lineIndex, lineModel)
+            } else {
+                lineModel.update(content, false)
+            }
+        }
     }
 
     getViewPortRange() {
@@ -1132,26 +1167,5 @@ export class TextEditor {
         const extraEnd = Math.min(this.textBuffer.lineCount - 1, end + this.EXTRA_BUFFER_ROW_OFFSET)
 
         return { extraStart, extraEnd }
-    }
-
-    parseText(text) {
-        text = text.replace(/\r\n/g, '\n').replace(/\t/g, this.TAB_VALUE)
-        const lines = text.split('\n')
-
-        lines.forEach((line, i) => {
-            lines[i] = line.split('')
-        })
-
-        return lines
-    }
-
-    renderPureText(buffer = null) {
-        let text = '';
-
-        (buffer ?? this.textBuffer).forEach(line => {
-            text += `${line.join('')}\n`
-        })
-
-        return text
     }
 }

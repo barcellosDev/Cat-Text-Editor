@@ -13,8 +13,6 @@ onMounted(() => {
     CatApp.renderTabs()
     CatApp.activeEditor.show()
     
-    console.log(CatApp.editors)
-
     window.addEventListener('resize', onResize)
 })
 
@@ -122,20 +120,19 @@ function onResize() {
 /*
     TEXT AREA CLASS
 */
-.text-editor-content-container .input-handler {
-    background-color: transparent;
-    border: none;
-    color: transparent;
-    margin: 0;
-    min-height: 0;
-    min-width: 0;
-    outline: none !important;
-    overflow: hidden;
-    padding: 0;
+.text-editor-main-container .input-handler {
     position: absolute;
-    resize: none;
-    z-index: -10;
     opacity: 0;
+    left: -10000px;
+    top: 0;
+    width: 0;
+    height: 0;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    white-space: pre;
+    line-height: 1;
 }
 
 

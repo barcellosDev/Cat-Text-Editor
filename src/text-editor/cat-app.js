@@ -44,7 +44,6 @@ export class CatApp {
     static createHighLightCodeThread() {
         if (this.highLightCodeThread === null) {
             this.highLightCodeThread = new HightlightCodeWorker()
-            console.log('CRIOU HIGHLIGHT THREAD')
         }
     }
 
@@ -52,7 +51,6 @@ export class CatApp {
         if (typeof this.highLightCodeThread?.terminate === 'function') {
             this.highLightCodeThread.terminate()
             this.highLightCodeThread = null
-            console.log('TERMINOU HIGHLIGHT THREAD')
         }
     }
 

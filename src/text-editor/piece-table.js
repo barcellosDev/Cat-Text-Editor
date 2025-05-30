@@ -476,8 +476,8 @@ export class PieceTable {
     }
 
     getLineLength(line) {
-        if (typeof this.cachedLinesContent[line] === 'string')
-            return this.cachedLinesContent[line].length
+        if (typeof this.cachedLinesContent?.[line] === 'string')
+            return this.cachedLinesContent?.[line].length
 
         if (line >= this.lineCount)
             return null

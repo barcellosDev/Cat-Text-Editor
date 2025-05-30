@@ -33,19 +33,16 @@ export class LineModel {
         this.lineCountElement.remove()
     }
 
-    update() {
+    update(data = null, highlight = this.highlight) {
         if (!this.lineElement.firstElementChild)
             throw new Error()
 
-        const textBufferRowData = this.textEditor.textBuffer.getLineContent(this.index)
+        if (data === null)
+            data = this.content
 
-        // trying to update an line that doesnt exists
-        // happens in case of deleting the last line (hence trying to update the line after it)
-        if (!textBufferRowData)
-            return
-
+        this.content = data
+        this.lineElement.appendChild(this.buildRootSpan(data, highlight))
         this.lineElement.firstElementChild.remove()
-        this.lineElement.appendChild(this.buildRootSpan(textBufferRowData))
     }
 
     buildLineCount() {
@@ -72,11 +69,11 @@ export class LineModel {
         return divLine
     }
 
-    buildRootSpan(content) {
+    buildRootSpan(content, highlight = this.highlight) {
         const spanRoot = document.createElement('span')
         spanRoot.className = 'root'
         
-        if (this.highlight) {
+        if (highlight && this.highlight) {
             let finalHTML = SHIKI.highlight(content, this.textEditor.fileInfo.extension)
             finalHTML = (new DOMParser()).parseFromString(finalHTML, 'text/html').querySelector('.line').innerHTML
     
