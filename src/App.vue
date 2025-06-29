@@ -28,6 +28,11 @@ onMounted(() => {
     let textEditorInstance = null
 
     files.forEach(fileData => {
+      if (CatApp.editors.some(editor => editor.fileInfo.path === fileData.path)) {
+        textEditorInstance = CatApp.editors.find(editor => editor.fileInfo.path === fileData.path)
+        return
+      }
+
       textEditorInstance = new TextEditor(fileData)
       CatApp.editors.push(textEditorInstance)
     })
@@ -35,6 +40,11 @@ onMounted(() => {
     if (textEditorInstance instanceof TextEditor) {
       CatApp.activeEditor = textEditorInstance
       router.push('editor')
+      CatApp.renderTabs()
+
+      if (CatApp.editors.length > 1) {
+        CatApp.activeEditor.show()
+      }
     }
   })
 

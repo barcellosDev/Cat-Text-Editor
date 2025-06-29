@@ -136,23 +136,6 @@ function onResize() {
 }
 
 
-/*
-    CURSOR BLINK BEHAVIOUR
-*/
-.blink-cursor {
-    animation: blink-cursor 1s step-start infinite;
-}
-
-@keyframes blink-cursor {
-    50% {
-        opacity: 0;
-    }
-}
-
-
-
-
-
 
 
 /*

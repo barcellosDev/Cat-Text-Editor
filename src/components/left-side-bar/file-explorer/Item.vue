@@ -1,5 +1,6 @@
 <script setup>
 import { defineProps, computed, ref } from 'vue';
+import { CatApp } from '@/text-editor/cat-app.js';
 
 const spacingOffset = 20
 
@@ -36,6 +37,10 @@ function toggleShowChildren() {
 function openFile(file) {
     if (file.type === 'directory')
         return
+
+    if (CatApp.editors.some(editor => editor.fileInfo.path === file.path)) {
+        return
+    }
 
     window.electron.onReadFile({
         path: file.path

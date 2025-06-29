@@ -52,13 +52,17 @@ function createLineStartsFast(str) {
         if (chr === CharCode.LineFeed) {
             lines[linesLength++] = i + 1
         }
+
+        if (chr === CharCode.CarriageReturn) {
+            if (i + 1 < str.length && str.charCodeAt(i + 1) === CharCode.LineFeed) {
+                // Skip the next character as it's part of CRLF
+                i++
+            }
+            lines[linesLength++] = i + 1
+        }
     }
 
     return lines
-}
-
-function normalizeLineEndings(text) {
-    return text.replace(/\r\n|\r/g, "\n");
 }
 
 export class PieceTable {
@@ -98,13 +102,12 @@ export class PieceTable {
 
             this.buffers.original.push(chunks[i])
             this.pieces.push(piece)
-            this.computeBufferMetaData()
+            this.lineCount += chunks[i].lineStarts.length - 1
+            this.length += chunks[i].buffer.length
         }
     }
 
     insert(index, text) {
-        text = normalizeLineEndings(text)
-
         const lastLineIndex = this.buffers.added[0].lineStarts.length - 1
         const lastLineOffset = this.buffers.added[0].lineStarts[lastLineIndex]
         const lastLineColumnEnd = this.buffers.added[0].buffer.substring(lastLineOffset).length
@@ -359,11 +362,11 @@ export class PieceTable {
             }
 
             // add the text before the first line start in this piece
-            lineContent += buffer.substring(pieceStartOffset, lineStarts[pieceStartLine + 1]).replace(/\n/, '')
+            lineContent += buffer.substring(pieceStartOffset, lineStarts[pieceStartLine + 1]).replace(/\n|\r\n/, '')
             lines[lineIndex++] = lineContent;
 
             for (let line = pieceStartLine + 1; line < pieceEndLine; line++) {
-                lineContent = buffer.substring(lineStarts[line], lineStarts[line + 1]).replace(/\n/, '')
+                lineContent = buffer.substring(lineStarts[line], lineStarts[line + 1]).replace(/\n|\r\n/, '')
                 lines[lineIndex++] = lineContent
             }
 
@@ -459,7 +462,7 @@ export class PieceTable {
 
                 content += buffer.substring(pieceStartOffset, lineStarts[currentPiece.start.line + 1])
 
-                if (content.match(/\n/g).length > 0) {
+                if (content.match(/\n|\r\n/g).length > 0) {
                     break
                 }
             }
@@ -468,7 +471,7 @@ export class PieceTable {
             content += chunk.buffer.substring(chunk.lineStarts[line], chunk.lineStarts[line + 1])
         }
 
-        return content.replace(/\n/g, '')
+        return content.replace(/\n|\r\n/g, '')
     }
 
     getCachedLine(line) {
@@ -476,11 +479,11 @@ export class PieceTable {
     }
 
     getLineLength(line) {
+        if (line > this.lineCount)
+            return null
+
         if (typeof this.cachedLinesContent?.[line] === 'string')
             return this.cachedLinesContent?.[line].length
-
-        if (line >= this.lineCount)
-            return null
 
         return this.getLineContent(line).length
     }

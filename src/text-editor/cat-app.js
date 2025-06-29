@@ -14,6 +14,7 @@ export class CatApp {
     }
     static LINE_HEIGHT = 19
     static highLightCodeThread = null
+    static directories = []
     
     static getFooter() {
         return document.getElementById('app-footer')

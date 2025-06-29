@@ -11,16 +11,19 @@ export class Cursor {
     /** @type {TextEditor} */
     textEditor
 
+    _blinkVisible = true
+    _blinkFrame = null
+    _lastBlinkTime = 0
+    _blinkInterval = 530 // ms
+
     constructor(textEditor, line = 0, col = 0) {
         this.textEditor = textEditor
         this.line = line
         this.col = col
 
-        // <div class="cursor"></div>
-
         const cursorsArea = this.textEditor.DOM.textEditorContentContainer.querySelector('.cursors')
         const div = document.createElement('div')
-        div.className = 'cursor blink-cursor'
+        div.className = 'cursor'
         div.style.width = `${this.width}px`
         div.style.height = `${this.height || CatApp.LINE_HEIGHT}px`
         div.style.backgroundColor = '#cacaca'
@@ -30,14 +33,39 @@ export class Cursor {
 
         this.element = div
         cursorsArea.appendChild(div)
+
+        this.startBlink()
+    }
+
+    startBlink() {
+        this._blinkVisible = true
+        this._lastBlinkTime = performance.now()
+        const blinkLoop = (now) => {
+            if (!this.element) return
+            if (now - this._lastBlinkTime >= this._blinkInterval) {
+                this._blinkVisible = !this._blinkVisible
+                this.element.style.visibility = this._blinkVisible ? 'visible' : 'hidden'
+                this._lastBlinkTime = now
+            }
+            this._blinkFrame = requestAnimationFrame(blinkLoop)
+        }
+        this._blinkFrame = requestAnimationFrame(blinkLoop)
     }
 
     stopBlink() {
-        this.element.classList.remove('blink-cursor')
+        if (this._blinkFrame) {
+            cancelAnimationFrame(this._blinkFrame)
+            this._blinkFrame = null
+        }
+        if (this.element) {
+            this.element.style.visibility = 'visible'
+        }
     }
 
     resumeBlink() {
-        this.element.classList.add('blink-cursor')
+        if (!this._blinkFrame) {
+            this.startBlink()
+        }
     }
 
     updateLineSelectedPosition() {
@@ -67,25 +95,24 @@ export class Cursor {
             this.line = line
         }
 
-        const y = CatApp.LINE_HEIGHT * this.line
+        const y = Math.floor(CatApp.LINE_HEIGHT * this.line)
         this.element.style.top = `${y}px`
         this.updateLineSelectedPosition()
         this.updateTextAreaToHandleKeyboardPosition()
     }
 
     setCol(col) {
-        const currentLineModel = this.textEditor.getLineModel(this.line)
-        const lineLength = currentLineModel.content.length
+        const lineLength = this.textEditor.textBuffer.getLineLength(this.line)
 
-        if (col > lineLength-1) {
-            this.col = lineLength-1
+        if (col > lineLength) {
+            this.col = lineLength
         } else if (col < 0) {
             this.col = 0
         } else {
             this.col = col
         }
 
-        const x = CatApp.getFontWidth() * this.col
+        const x = Math.round(CatApp.getFontWidth() * this.col)
         this.element.style.left = `${x}px`
         this.updateTextAreaToHandleKeyboardPosition()
     }

@@ -68,8 +68,7 @@ export class Selection {
                 let selectionDiv = this.textEditor.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${row}"]`)
                 let newLeft = 0
 
-                const currentLineModel = this.textEditor.getLineModel(row)
-                const lineLength = currentLineModel.content.length
+                const lineLength = this.textEditor.textBuffer.getLineLength(row)
                 const newTop = this.textEditor.getBufferLineToScreenY(row)
 
                 let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
@@ -105,8 +104,7 @@ export class Selection {
             for (let row = start; row > end; row--) {
                 let selectionDiv = this.textEditor.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${row}"]`)
 
-                const currentLineModel = this.textEditor.getLineModel(row)
-                const lineLength = currentLineModel.content.length
+                const lineLength = this.textEditor.textBuffer.getLineLength(row)
 
                 let newLeft = 0
                 let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)

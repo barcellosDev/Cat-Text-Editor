@@ -6,6 +6,7 @@ import { Cursor } from "./cursor";
 import { CatApp } from "./cat-app";
 import { ScrollBarVertical } from "./scrollbars/scrollbar-vertical";
 import { ScrollBarHorizontal } from "./scrollbars/scrollbar-horizontal";
+import { Emitter } from "@/utils/emitter";
 
 
 export class TextEditor {
@@ -46,6 +47,8 @@ export class TextEditor {
     currentLineintermediaryBuffer = null
     intermediaryBufferToInsertAtPiece = ''
     timeoutBatchInput = null
+
+    emitter = null
 
     /** @type {PieceTable} */
     textBuffer = null
@@ -276,6 +279,7 @@ export class TextEditor {
     }
 
     constructor(fileData = null) {
+        this.emitter = new Emitter()
         let textBufferInstance = new PieceTable(this)
         let fileInfoInstance = new FileInfo()
 
@@ -468,6 +472,7 @@ export class TextEditor {
             })
 
             this.DOM.editorElement.onmousemove = null
+            this.cursor.resumeBlink()
         })
 
         this.DOM.editorElement.addEventListener('mousedown', (ev) => {
@@ -523,6 +528,8 @@ export class TextEditor {
 
                 CatApp.setCursorPositionInFooter()
             }
+
+            this.cursor.stopBlink()
             CatApp.setCursorPositionInFooter()
         })
 
@@ -902,7 +909,7 @@ export class TextEditor {
     }
 
     incrementLineModelPositions(indexToStart = null, offset = 1) {
-        for (let index = this.lineModelBuffer.size-1; index > (indexToStart ?? this.cursor.getLine()); index--) {
+        for (let index = this.lineModelBuffer.size - 1; index > (indexToStart ?? this.cursor.getLine()); index--) {
             const lineModel = this.lineModelBuffer.get(index)
             const newBufferRow = Number(lineModel.lineElement.getAttribute('buffer-row')) + offset
 
@@ -929,7 +936,7 @@ export class TextEditor {
             lineModel.lineElement.style.top = `${lineModel.lineElement.offsetTop - CatApp.LINE_HEIGHT * offset}px`
 
             lineModel.lineCountElement.style.top = `${lineModel.lineCountElement.offsetTop - CatApp.LINE_HEIGHT * offset}px`
-            lineModel.lineCountElement.innerText = lineModel.index+1 - offset
+            lineModel.lineCountElement.innerText = lineModel.index + 1 - offset
 
             this.lineModelBuffer.set(newBufferRow, lineModel)
         }
@@ -943,7 +950,7 @@ export class TextEditor {
         //}
 
         this.intermediaryBufferToInsertAtPiece += text
-        const textLineFeedCount = (text.match(/\n/g) || []).length
+        const textLineFeedCount = (text.match(/\n|\r\n/g) || []).length
         const lineBeforeInsert = this.cursor.getLine()
         const columnBeforeInsert = this.cursor.getCol()
 
@@ -1116,7 +1123,7 @@ export class TextEditor {
         }
     }
 
-    async renderContent(start = null, end = null) {
+    renderContent(start = null, end = null) {
         const { extraStart, extraEnd } = this.getExtraViewPortRange()
 
         if (!start)
@@ -1125,15 +1132,22 @@ export class TextEditor {
         if (!end)
             end = extraEnd
 
-        this.DOM.editorElement.innerHTML = ''
-        this.DOM.editorLinesElement.innerHTML = ''
-        this.lineModelBuffer.clear()
-
         for (let lineIndex = start; lineIndex < end; lineIndex++) {
             const content = this.textBuffer.getLineContent(lineIndex)
-            const lineModel = new LineModel(this, content, lineIndex, true)
-            this.lineModelBuffer.set(lineIndex, lineModel)
+            let lineModel = this.lineModelBuffer.get(lineIndex)
+
+            if (!lineModel) {
+                lineModel = new LineModel(this, content, lineIndex, true)
+                this.lineModelBuffer.set(lineIndex, lineModel)
+            } else {
+                lineModel.update(content, false)
+            }
         }
+
+        this.emitter.emit('content-rendered', {
+            start: extraStart, 
+            end: extraEnd
+        })
     }
 
     async highlightContent() {
@@ -1151,6 +1165,11 @@ export class TextEditor {
                 lineModel.update(content, false)
             }
         }
+
+        this.emitter.emit('highlighted-content-rendered', {
+            start: extraStart, 
+            end: extraEnd
+        })
     }
 
     getViewPortRange() {

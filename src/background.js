@@ -6,7 +6,7 @@ import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 import * as nodePath from 'path'
 import { statSync } from 'fs'
 import { writeFile, open } from 'fs/promises'
-import * as utils from './utils'
+import * as utils from './utils/tree-read'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
