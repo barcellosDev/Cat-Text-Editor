@@ -388,6 +388,8 @@ export class TextEditor {
             this.verticalScrollbar.isDragging = false
             this.horizontalScrollBar.isDragging = false
             document.body.style.userSelect = '';
+            this.cursor.tempLineBeforeInsert = this.cursor.getLine()
+            this.cursor.tempColBeforeInsert = this.cursor.getCol()
         })
 
         this.DOM.editorElement.addEventListener('click', () => {
@@ -404,7 +406,9 @@ export class TextEditor {
         }
 
         textAreaToHandleKeyboard.onkeydown = ev => {
+            this.cursor.stopBlink()
             this.handleInputKeyBoard(ev)
+            this.cursor.resumeBlink()
             textAreaToHandleKeyboard.value = ''
         }
 
@@ -972,7 +976,7 @@ export class TextEditor {
         if (textLineFeedCount > 0) {
             const { extraStart, extraEnd } = this.getExtraViewPortRange()
             let currentLineModel = this.getLineModel(lineBeforeInsert)
-            let currentLineModelContent = currentLineModel.content.split('')
+            let currentLineModelContent = currentLineModel.getContent().split('')
             const currentLineModelContentAfterCursor = currentLineModelContent.splice(columnBeforeInsert)
 
             if (lineBeforeInsert + textLineFeedCount > extraEnd) {
@@ -1002,15 +1006,15 @@ export class TextEditor {
 
             this.cursor.setLine(lineBeforeInsert + textLineFeedCount)
             currentLineModel = this.getLineModel(this.cursor.getLine())
-            this.cursor.setCol(currentLineModel.content.length)
+            this.cursor.setCol(currentLineModel.getContent().length)
 
-            currentLineModel.update(currentLineModel.content += currentLineModelContentAfterCursor.join(''))
+            currentLineModel.update(currentLineModel.getContent() + currentLineModelContentAfterCursor.join(''))
 
         } else {
             const lineModel = this.getLineModel(lineBeforeInsert)
 
             if (this.currentLineintermediaryBuffer === null) {
-                this.currentLineintermediaryBuffer = lineModel.content.split('')
+                this.currentLineintermediaryBuffer = lineModel.getContent().split('')
             }
 
             this.currentLineintermediaryBuffer.splice(columnBeforeInsert, 0, text)
@@ -1026,13 +1030,17 @@ export class TextEditor {
             console.log(this.intermediaryBufferToInsertAtPiece)
             console.log(this.currentLineintermediaryBuffer)
 
-            const documentOffset = this.textBuffer.getLineColumnToBufferOffset(lineBeforeInsert, columnBeforeInsert)
+            const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.cursor.tempLineBeforeInsert, this.cursor.tempColBeforeInsert)
+            console.log(documentOffset)
+
             this.textBuffer.insert(documentOffset, this.intermediaryBufferToInsertAtPiece)
 
             this.highlightContent().then(() => this.updateDOM())
 
             this.intermediaryBufferToInsertAtPiece = ''
             this.currentLineintermediaryBuffer = null
+            this.cursor.tempLineBeforeInsert = this.cursor.getLine()
+            this.cursor.tempColBeforeInsert = this.cursor.getCol()
         }, 500)
     }
 

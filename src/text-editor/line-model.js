@@ -15,17 +15,28 @@ export class LineModel {
     highlight
     content
     index
+    DOMParser
 
     constructor(textEditor, content, index, highlight = false) {
         this.textEditor = textEditor
         this.content = content
         this.index = index
+        this.DOMParser = new DOMParser()
         this.highlight = highlight
         this.lineElement = this.buildLine()
         this.lineCountElement = this.buildLineCount()
 
         this.textEditor.DOM.editorElement.appendChild(this.lineElement)
         this.textEditor.DOM.editorLinesElement.appendChild(this.lineCountElement)
+    }
+
+    getContent() {
+        return this.lineElement.firstElementChild.innerText
+    }
+
+    setContent(content) {
+        const htmlParsedToPureText = this.DOMParser.parseFromString(content, 'text/html').body.innerText
+        this.content = htmlParsedToPureText
     }
 
     remove() {
@@ -40,7 +51,7 @@ export class LineModel {
         if (data === null)
             data = this.content
 
-        this.content = data
+        this.setContent(data)
         this.lineElement.appendChild(this.buildRootSpan(data, highlight))
         this.lineElement.firstElementChild.remove()
     }
@@ -75,7 +86,7 @@ export class LineModel {
         
         if (highlight && this.highlight) {
             let finalHTML = SHIKI.highlight(content, this.textEditor.fileInfo.extension)
-            finalHTML = (new DOMParser()).parseFromString(finalHTML, 'text/html').querySelector('.line').innerHTML
+            finalHTML = this.DOMParser.parseFromString(finalHTML, 'text/html').querySelector('.line').innerHTML
     
             spanRoot.innerHTML = finalHTML
         } else {

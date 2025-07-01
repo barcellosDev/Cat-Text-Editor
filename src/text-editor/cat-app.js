@@ -1,3 +1,4 @@
+import router from '@/router/index.js'
 import { TextEditor } from './text-core.js'
 import HightlightCodeWorker from './workers/highlightCodeThread.worker.js'
 
@@ -131,6 +132,9 @@ export class CatApp {
         this.renderTabs()
 
         if (this.editors.length === 0) {
+            router.push('/')
+            this.activeEditor = null
+            this.getFooter().querySelector('#cursor-position').innerText = ''
             return
         }
 

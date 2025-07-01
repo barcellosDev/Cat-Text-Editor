@@ -4,6 +4,9 @@ import { TextEditor } from "./text-core"
 export class Cursor {
     line = 0
     col = 0
+    tempLineBeforeInsert = null
+    tempColBeforeInsert = null
+    
     element = null
     width = 2
     height = null
@@ -102,7 +105,7 @@ export class Cursor {
     }
 
     setCol(col) {
-        const lineLength = this.textEditor.textBuffer.getLineLength(this.line)
+        const lineLength = this.textEditor.getLineModel(this.line).getContent().length
 
         if (col > lineLength) {
             this.col = lineLength
