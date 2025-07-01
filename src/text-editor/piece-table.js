@@ -75,8 +75,8 @@ export class PieceTable {
     lineCount = 1
     length = 0
     textEditor
-    cachedLinesContent = null
-    cachedLinesContentHighlighted = null
+    cachedLinesContent = new Map() // Cache for lines content
+    cachedLinesContentHighlighted = new Map() // Cache for highlighted lines content
 
     constructor(textEditor, chunks = []) {
         this.textEditor = textEditor
@@ -207,8 +207,8 @@ export class PieceTable {
                     newPieces.push(this.pieces[j])
                 }
                 this.pieces = newPieces
-                this.cachedLinesContent = null
-                this.cachedLinesContentHighlighted = null
+                this.cachedLinesContent.clear()
+                this.cachedLinesContentHighlighted.clear()
                 this.computeBufferMetaData()
                 return
             }
@@ -216,8 +216,8 @@ export class PieceTable {
 
         newPieces.push(newPiece)
         this.pieces = newPieces
-        this.cachedLinesContent = null
-        this.cachedLinesContentHighlighted = null
+        this.cachedLinesContent.clear()
+        this.cachedLinesContentHighlighted.clear()
         this.computeBufferMetaData()
     }
 
@@ -327,18 +327,27 @@ export class PieceTable {
         }
 
         this.pieces = newPieces
-        this.cachedLinesContent = null
-        this.cachedLinesContentHighlighted = null
+        this.cachedLinesContent.clear()
+        this.cachedLinesContentHighlighted.clear()
         this.computeBufferMetaData()
     }
 
-    getLinesContent() {
-        if (this.cachedLinesContent)
-            return this.cachedLinesContent
-
+    setLineContentInCache(start, end, content, isHighlightCache) {
+        const isFullRange = (start === 0 && (end === null || end >= this.lineCount - 1))
+        if (!isFullRange) {
+            if (isHighlightCache) {
+                this.cachedLinesContentHighlighted.set(start, content)
+            } else {
+                this.cachedLinesContent.set(start, content)
+            }
+        }
+    }
+    
+    getLinesContent(startLine = 0, endLine = null) {
         const lines = []
         let lineIndex = 0
         let lineContent = ''
+        let globalLine = 0
 
         for (let index = 0; index < this.pieces.length; index++) {
             const piece = this.pieces[index]
@@ -363,29 +372,35 @@ export class PieceTable {
 
             // add the text before the first line start in this piece
             lineContent += buffer.substring(pieceStartOffset, lineStarts[pieceStartLine + 1]).replace(/\n|\r\n/, '')
-            lines[lineIndex++] = lineContent;
+            if (globalLine >= startLine && (endLine === null || globalLine <= endLine)) {
+                lines[lineIndex++] = lineContent
+                this.setLineContentInCache(globalLine, endLine, lineContent, false)
+            }
+            globalLine++
 
             for (let line = pieceStartLine + 1; line < pieceEndLine; line++) {
                 lineContent = buffer.substring(lineStarts[line], lineStarts[line + 1]).replace(/\n|\r\n/, '')
-                lines[lineIndex++] = lineContent
+                if (globalLine >= startLine && (endLine === null || globalLine <= endLine)) {
+                    lines[lineIndex++] = lineContent
+                    this.setLineContentInCache(globalLine, endLine, lineContent, false)
+                }
+                globalLine++
             }
 
             lineContent = buffer.substring(lineStarts[pieceEndLine], lineStarts[pieceEndLine] + pieceEndCol)
         }
 
-        lines[lineIndex++] = lineContent
-
-        this.cachedLinesContent = lines
+        if (globalLine >= startLine && (endLine === null || globalLine <= endLine)) {
+            lines[lineIndex++] = lineContent
+            this.setLineContentInCache(globalLine, endLine, lineContent, false)
+        }
 
         return lines
     }
 
-    getLinesContentHighlighted() {
+    getLinesContentHighlighted(startLine = 0, endLine = null) {
         return new Promise(resolve => {
             if (CatApp.highLightCodeThread !== null) {
-                if (this.cachedLinesContentHighlighted)
-                    resolve(this.cachedLinesContentHighlighted)
-
                 CatApp.highLightCodeThread.onmessage = (event) => {
                     const lines = []
                     const html = event.data
@@ -393,20 +408,22 @@ export class PieceTable {
 
                     let index = 0
 
-                    for (let i = 0; i < linesElements.length; i++)
-                        lines[index++] = linesElements[i].innerHTML
+                    for (let i = 0; i < linesElements.length; i++) {
+                        const htmlContent = linesElements[i].innerHTML
+                        lines[index++] = htmlContent
+                        this.setLineContentInCache(startLine + i, endLine, htmlContent, true)
+                    }
 
-                    this.cachedLinesContentHighlighted = lines
                     resolve(lines)
                 }
 
                 CatApp.highLightCodeThread.postMessage({
-                    data: this.getText(),
+                    data: this.getText(startLine, endLine),
                     extension: this.textEditor.fileInfo.extension
                 })
 
             } else {
-                resolve(this.getLinesContent())
+                resolve(this.getLinesContent(startLine, endLine))
             }
         })
     }
@@ -427,8 +444,9 @@ export class PieceTable {
     }
 
     getLineContent(line) {
-        if (typeof this.getCachedLine(line) === 'string')
-            return this.getCachedLine(line)
+        const cachedLine = this.getCachedLine(line)
+        if (cachedLine !== null)
+            return cachedLine
 
         const { piece, offset, index } = this.findPieceByLine(line)
 
@@ -471,25 +489,36 @@ export class PieceTable {
             content += chunk.buffer.substring(chunk.lineStarts[line], chunk.lineStarts[line + 1])
         }
 
-        return content.replace(/\n|\r\n/g, '')
+        return { content: content.replace(/\n|\r\n/g, ''), isHighlighted: false }
     }
 
     getCachedLine(line) {
-        return this.cachedLinesContentHighlighted?.[line] ?? this.cachedLinesContent?.[line] ?? null
+        if (this.cachedLinesContentHighlighted.get(line)) {
+            return {  content: this.cachedLinesContentHighlighted.get(line), isHighlighted: true }
+        }
+
+        if (this.cachedLinesContent.get(line)) {
+            return { content: this.cachedLinesContent.get(line), isHighlighted: false }
+        }
+
+        return null
     }
 
     getLineLength(line) {
         if (line > this.lineCount)
             return null
 
-        if (typeof this.cachedLinesContent?.[line] === 'string')
-            return this.cachedLinesContent?.[line].length
+        const cachedLine = this.cachedLinesContent.get(line)
 
-        return this.getLineContent(line).length
+        if (cachedLine !== undefined) {
+            return cachedLine.length
+        }
+        
+        return this.getLineContent(line).content.length
     }
 
-    getText() {
-        const linesContent = this.getLinesContent()
+    getText(startLine = 0, endLine = null) {
+        const linesContent = this.getLinesContent(startLine, endLine)
         return linesContent.join('\n')
     }
 

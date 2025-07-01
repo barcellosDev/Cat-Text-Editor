@@ -96,7 +96,7 @@ export class TextEditor {
             })
 
             this.verticalScrollbar.updateThumb()
-            this.verticalScrollbar.container.dispatchEvent(new Event('on-scroll'))
+            this.emitter.emit("vertical-scroll")
 
             const newRowBuffer = this.getScreenYToBuffer(newYOffset)
             this.cursor.setLine(newRowBuffer)
@@ -128,7 +128,7 @@ export class TextEditor {
             })
 
             this.verticalScrollbar.updateThumb()
-            this.verticalScrollbar.container.dispatchEvent(new Event('on-scroll'))
+            this.emitter.emit("vertical-scroll")
 
             const newRowBuffer = this.getScreenYToBuffer(newYOffset + this.DOM.textEditorContentWrapper.offsetHeight - CatApp.LINE_HEIGHT)
             this.cursor.setLine(newRowBuffer)
@@ -536,8 +536,16 @@ export class TextEditor {
         const ROWS_GAP_TO_FETCH = 15
         let lastScrollTop = 0
         let isTicking = false
+        let onVerticalScrollTimeoutHandler = null
 
-        this.verticalScrollbar.container.addEventListener('on-scroll', () => {
+        this.emitter.on("vertical-scroll", () => {
+            clearTimeout(onVerticalScrollTimeoutHandler)
+            onVerticalScrollTimeoutHandler = setTimeout(() => {
+                this.highlightContent()
+            }, 500)
+        })
+
+        this.emitter.on("vertical-scroll", () => {
             if (!isTicking) {
                 window.requestAnimationFrame(() => {
                     const { start, end } = this.getViewPortRange()
@@ -556,8 +564,11 @@ export class TextEditor {
                                 if (this.DOM.editorElement.querySelector(`.line[buffer-row="${index}"]`))
                                     continue
 
-                                const content = this.textBuffer.getLineContent(index)
-                                const lineModel = new LineModel(this, content, index)
+                                const lineObject = this.textBuffer.getLineContent(index)
+                                const content = lineObject.content
+                                const isHighlighted = lineObject.isHighlighted
+
+                                const lineModel = new LineModel(this, content, index, !isHighlighted)
                                 this.lineModelBuffer.set(index, lineModel)
                             }
 
@@ -588,8 +599,11 @@ export class TextEditor {
                                 if (index > lastLineOffsetInBuffer)
                                     break
 
-                                const content = this.textBuffer.getLineContent(index)
-                                const lineModel = new LineModel(this, content, index)
+                                const lineObject = this.textBuffer.getLineContent(index)
+                                const content = lineObject.content
+                                const isHighlighted = lineObject.isHighlighted
+
+                                const lineModel = new LineModel(this, content, index, !isHighlighted)
                                 this.lineModelBuffer.set(index, lineModel)
                             }
 
@@ -1097,8 +1111,7 @@ export class TextEditor {
             })
 
             this.verticalScrollbar.updateThumb()
-            this.verticalScrollbar.container.dispatchEvent(new Event('on-scroll'))
-
+            this.emitter.emit("vertical-scroll")
             this.cursor.setLine(this.getScreenYToBuffer(this.DOM.textEditorContentWrapper.offsetHeight + this.DOM.textEditorContentWrapper.scrollTop - offsetToScroll))
 
         }
@@ -1116,8 +1129,7 @@ export class TextEditor {
             })
 
             this.verticalScrollbar.updateThumb()
-            this.verticalScrollbar.container.dispatchEvent(new Event('on-scroll'))
-
+            this.emitter.emit("vertical-scroll")
             this.cursor.setLine(this.getScreenYToBuffer(this.DOM.textEditorContentWrapper.scrollTop + offsetToScroll))
 
         }
@@ -1133,41 +1145,45 @@ export class TextEditor {
             end = extraEnd
 
         for (let lineIndex = start; lineIndex < end; lineIndex++) {
-            const content = this.textBuffer.getLineContent(lineIndex)
+            const lineObject = this.textBuffer.getLineContent(lineIndex)
             let lineModel = this.lineModelBuffer.get(lineIndex)
 
+            const content = lineObject.content
+            const isHighlighted = lineObject.isHighlighted
+
             if (!lineModel) {
-                lineModel = new LineModel(this, content, lineIndex, true)
+                lineModel = new LineModel(this, content, lineIndex, !isHighlighted)
                 this.lineModelBuffer.set(lineIndex, lineModel)
             } else {
-                lineModel.update(content, false)
+                lineModel.update(content, !isHighlighted)
             }
         }
 
         this.emitter.emit('content-rendered', {
-            start: extraStart, 
+            start: extraStart,
             end: extraEnd
         })
     }
 
     async highlightContent() {
         const { extraStart, extraEnd } = this.getExtraViewPortRange()
-        const lines = await this.textBuffer.getLinesContentHighlighted()
+        const lines = await this.textBuffer.getLinesContentHighlighted(extraStart, extraEnd)
 
-        for (let lineIndex = extraStart; lineIndex < extraEnd; lineIndex++) {
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             const content = lines[lineIndex]
-            let lineModel = this.lineModelBuffer.get(lineIndex)
+            const relativeLineIndex = extraStart + lineIndex
+            let lineModel = this.lineModelBuffer.get(relativeLineIndex)
 
             if (!lineModel) {
-                lineModel = new LineModel(this, content, lineIndex)
-                this.lineModelBuffer.set(lineIndex, lineModel)
+                lineModel = new LineModel(this, content, relativeLineIndex)
+                this.lineModelBuffer.set(relativeLineIndex, lineModel)
             } else {
                 lineModel.update(content, false)
             }
         }
 
         this.emitter.emit('highlighted-content-rendered', {
-            start: extraStart, 
+            start: extraStart,
             end: extraEnd
         })
     }
