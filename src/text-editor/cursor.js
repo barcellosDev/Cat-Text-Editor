@@ -4,9 +4,7 @@ import { TextEditor } from "./text-core"
 export class Cursor {
     line = 0
     col = 0
-    tempLineBeforeInsert = null
-    tempColBeforeInsert = null
-    
+
     element = null
     width = 2
     height = null

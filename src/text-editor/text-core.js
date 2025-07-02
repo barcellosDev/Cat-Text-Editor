@@ -44,9 +44,17 @@ export class TextEditor {
     IS_SHIFT_KEY_PRESSED = false
     deletedLinesIntervalBuffer = {}
 
+    TEMP_LineBeforeInsert = null
+    TEMP_ColBeforeInsert = null
+    TEMP_charLengthToDelete = 0
+
     currentLineintermediaryBuffer = null
     intermediaryBufferToInsertAtPiece = ''
+
+    timeoutBatchDelete = null
     timeoutBatchInput = null
+    timeoutBatchDeleteTimeInMS = 500
+    timeoutBatchInputTimeInMS = 500
 
     emitter = null
 
@@ -85,6 +93,9 @@ export class TextEditor {
 
     lineModelBuffer = new Map()
     notPrint = {
+        9: (ev) => { // tab
+            //
+        },
         16: (ev) => {
             this.IS_SHIFT_KEY_PRESSED = ev.shiftKey
         },
@@ -388,8 +399,8 @@ export class TextEditor {
             this.verticalScrollbar.isDragging = false
             this.horizontalScrollBar.isDragging = false
             document.body.style.userSelect = '';
-            this.cursor.tempLineBeforeInsert = this.cursor.getLine()
-            this.cursor.tempColBeforeInsert = this.cursor.getCol()
+            this.TEMP_LineBeforeInsert = this.cursor.getLine()
+            this.TEMP_ColBeforeInsert = this.cursor.getCol()
         })
 
         this.DOM.editorElement.addEventListener('click', () => {
@@ -759,16 +770,6 @@ export class TextEditor {
             return
         }
 
-        if (keyCode === 9) { // tab
-            char = ' '
-
-            for (let count = 1; count <= 2; count++)
-                this.insertText(char)
-
-            this.getLineModel().update()
-            return
-        }
-
         if (keyCode === 32) { // space
             char = ' '
         }
@@ -892,38 +893,47 @@ export class TextEditor {
     }
 
     handleDelete() {
-        if (this.selection.isCollapsed()) {
-            if (this.cursor.getLine() === 0 && this.cursor.getCol() === 0) {
-                return
-            }
+        if (this.cursor.getLine() === 0 && this.cursor.getCol() === 0)
+            return
 
-            if (this.cursor.getLine() > 0 && this.cursor.getCol() === 0) {
-                const deletedLine = this.textBuffer.splice(this.cursor.getLine(), 1)[0]
-                this.getLineModel().update()
+        if (!this.selection.isCollapsed())
+            return this.handleDeleteWithSelection()
 
-                this.deleteLineModel()
-                this.cursor.decrementLine()
-                this.cursor.setCol(this.textBuffer[this.cursor.getLine()].length)
+        if (this.cursor.getLine() > 0 && this.cursor.getCol() === 0) {
+            const deletedLine = this.getLineModel().getContent()
 
-                this.textBuffer[this.cursor.getLine()] = this.textBuffer[this.cursor.getLine()].concat(deletedLine)
+            this.deleteLineModel()
+            this.cursor.decrementLine()
 
-                this.getLineModel().update()
-                this.decrementLineModelPositions()
-                return
-            }
+            this.cursor.setCol(this.getLineModel().getContent().length)
 
-            if (this.cursor.getCol() < this.textBuffer[this.cursor.getLine()].length) {
-                this.textBuffer[this.cursor.getLine()].splice(this.cursor.getCol() - 1, 1)
-                this.cursor.decrementCol()
-                this.getLineModel().update()
-            } else {
-                this.textBuffer[this.cursor.getLine()].pop()
-                this.cursor.decrementCol()
-                this.getLineModel().update()
-            }
-        } else {
-            this.handleDeleteWithSelection()
+            const currentLineModel = this.getLineModel()
+            currentLineModel.update(currentLineModel.getContent() + deletedLine, true)
+
+            this.decrementLineModelPositions()
         }
+
+        if (this.cursor.getLine() > 0 && this.cursor.getCol() > 0) {
+            const currentLineModel = this.getLineModel()
+            const currentLineContent = currentLineModel.getContent().split('')
+
+            const lineContentAfterCursor = currentLineContent.splice(this.cursor.getCol())
+
+            currentLineContent.splice(this.cursor.getCol() - 1, 1)
+            currentLineModel.update(currentLineContent.join('') + lineContentAfterCursor.join(''), true)
+
+            this.cursor.decrementCol()
+        }
+
+        this.TEMP_charLengthToDelete++
+
+        clearTimeout(this.timeoutBatchDelete)
+        this.timeoutBatchDelete = setTimeout(() => {
+            const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.cursor.getLine(), this.cursor.getCol())
+            this.textBuffer.delete(documentOffset, this.TEMP_charLengthToDelete)
+            this.highlightContent().then(() => this.updateDOM())
+            this.TEMP_charLengthToDelete = 0
+        }, this.timeoutBatchDeleteTimeInMS)
     }
 
     incrementLineModelPositions(indexToStart = null, offset = 1) {
@@ -1030,7 +1040,7 @@ export class TextEditor {
             console.log(this.intermediaryBufferToInsertAtPiece)
             console.log(this.currentLineintermediaryBuffer)
 
-            const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.cursor.tempLineBeforeInsert, this.cursor.tempColBeforeInsert)
+            const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.TEMP_LineBeforeInsert, this.TEMP_ColBeforeInsert)
             console.log(documentOffset)
 
             this.textBuffer.insert(documentOffset, this.intermediaryBufferToInsertAtPiece)
@@ -1039,15 +1049,15 @@ export class TextEditor {
 
             this.intermediaryBufferToInsertAtPiece = ''
             this.currentLineintermediaryBuffer = null
-            this.cursor.tempLineBeforeInsert = this.cursor.getLine()
-            this.cursor.tempColBeforeInsert = this.cursor.getCol()
-        }, 500)
+            this.TEMP_LineBeforeInsert = this.cursor.getLine()
+            this.TEMP_ColBeforeInsert = this.cursor.getCol()
+        }, this.timeoutBatchInputTimeInMS)
     }
 
     isCharValid(keyCode) {
         return (keyCode > 47 && keyCode < 58) || // number keys
             this.notPrint[keyCode] ||
-            keyCode == 32 || keyCode == 9 ||
+            keyCode == 32 || keyCode == 9 || keyCode == 13 || // space, tab, enter
             keyCode == 226 || keyCode === 33 ||
             keyCode === 16 || keyCode === 34 ||
             (keyCode > 64 && keyCode < 91) || // letter keys
