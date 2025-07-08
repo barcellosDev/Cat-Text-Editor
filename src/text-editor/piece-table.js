@@ -65,6 +65,7 @@ function createLineStartsFast(str) {
     return lines
 }
 
+
 export class PieceTable {
     pieces = []
     buffers = {
@@ -342,7 +343,7 @@ export class PieceTable {
             }
         }
     }
-    
+
     getLinesContent(startLine = 0, endLine = null) {
         const lines = []
         let lineIndex = 0
@@ -494,7 +495,7 @@ export class PieceTable {
 
     getCachedLine(line) {
         if (this.cachedLinesContentHighlighted.get(line)) {
-            return {  content: this.cachedLinesContentHighlighted.get(line), isHighlighted: true }
+            return { content: this.cachedLinesContentHighlighted.get(line), isHighlighted: true }
         }
 
         if (this.cachedLinesContent.get(line)) {
@@ -513,7 +514,7 @@ export class PieceTable {
         if (cachedLine !== undefined) {
             return cachedLine.length
         }
-        
+
         return this.getLineContent(line).content.length
     }
 
@@ -555,5 +556,34 @@ export class PieceTable {
         const buffer = this.buffers[foundPiece.position.type][foundPiece.position.bufferIndex]
 
         return offset + buffer.lineStarts[line - lineFeedCount] + col
+    }
+
+    /**
+     * Normalizes EOLs in all buffers (original and added) to the given EOL,
+     * or to this.textEditor.defaultEOL if not specified.
+     */
+    normalizeAllEOLs(targetEOL = null) {
+        const eol = targetEOL || this.textEditor.defaultEOL
+
+        // Normalize original buffers
+        for (let i = 0; i < this.buffers.original.length; i++) {
+            const buf = this.buffers.original[i];
+            if (!buf) continue;
+            buf.buffer = this.textEditor.normalizeEOL(buf.buffer, eol);
+            buf.lineStarts = createLineStartsFast(buf.buffer);
+        }
+
+        // Normalize added buffers
+        for (let i = 0; i < this.buffers.added.length; i++) {
+            const buf = this.buffers.added[i];
+            if (!buf) continue;
+            buf.buffer = this.textEditor.normalizeEOL(buf.buffer, eol);
+            buf.lineStarts = createLineStartsFast(buf.buffer);
+        }
+
+        // Clear caches and recompute metadata
+        this.cachedLinesContent.clear();
+        this.cachedLinesContentHighlighted.clear();
+        this.computeBufferMetaData();
     }
 }

@@ -68,8 +68,8 @@ onMounted(() => {
     <div id="app-footer">
       <div id="footer-left"></div>
       <div id="footer-right">
-        <div id="cursor-position">
-        </div>
+        <div id="default-eol"></div>
+        <div id="cursor-position"></div>
       </div>
     </div>
   </div>
@@ -141,13 +141,17 @@ body {
 }
 
 #app-footer {
-
   height: 20px;
   color: white;
   padding: 2px;
   background-color: #569cd6;
   display: flex;
   justify-content: space-between;
+}
 
+#footer-right {
+  display: flex;
+  gap: 20px;
+  margin: 0 5px;
 }
 </style>

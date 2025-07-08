@@ -62,7 +62,11 @@ if (isDevelopment) {
   }
 }
 
-
+function detectEOL(text) {
+  const crlf = text.indexOf('\r\n')
+  if (crlf !== -1) return '\r\n'
+  return '\n'
+}
 
 async function createWindow() {
   // Create the browser window.
@@ -207,35 +211,42 @@ async function createWindow() {
     const filePaths = result.filePaths
 
     const filePromises = filePaths.map(async filePath => {
-      return await ipcReadFile({path: filePath})
+      return await ipcReadFile({ path: filePath })
     })
 
     return await Promise.all(filePromises)
   }
 
-  async function ipcReadFile({path = null}) {
+  async function ipcReadFile({ path = null }) {
     if (!path) {
       throw new Error('Defina um caminho para ler o arquivo')
     }
 
     const fileHandler = await open(path, 'r')
-    const stream = fileHandler.createReadStream({encoding: 'utf-8'})
+    const stream = fileHandler.createReadStream({ encoding: 'utf-8' })
+    let defaultEOL = null
 
     return new Promise(resolve => {
       const buffer = []
 
       stream.on('data', (chunk) => {
+        if (defaultEOL === null) // Detect the default EOL from the first chunk
+          defaultEOL = detectEOL(chunk)
+          
         buffer.push(chunk)
       })
 
       stream.on('end', () => {
         fileHandler.close()
 
+        const isPosix = process.platform !== 'win32'
+
         resolve({
           buffer,
-          name: process.platform === 'win32' ? nodePath.win32.basename(path) : nodePath.posix.basename(path),
+          name: !isPosix ? nodePath.win32.basename(path) : nodePath.posix.basename(path),
           path: path,
           extension: nodePath.extname(path),
+          defaultEOL
         })
       })
     })

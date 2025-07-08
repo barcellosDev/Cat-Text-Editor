@@ -1,6 +1,7 @@
 import router from '@/router/index.js'
 import { TextEditor } from './text-core.js'
 import HightlightCodeWorker from './workers/highlightCodeThread.worker.js'
+import { CharCode } from './char-codes.js'
 
 export class CatApp {
     /** @type {TextEditor[]} */
@@ -35,12 +36,29 @@ export class CatApp {
         return context.measureText('A').width
     }
 
+    static getCursorPositionInFooter() {
+        const footer = this.getFooter()
+        return footer.querySelector('#cursor-position')
+    }
+
+    static getDefaultEOLInFooter() {
+        const footer = this.getFooter()
+        return footer.querySelector('#default-eol')
+    }
+
     static setCursorPositionInFooter() {
         const ln = this.activeEditor.cursor.getLine()+1
         const col = this.activeEditor.cursor.getCol()+1
         
         if (!isNaN(ln) && !isNaN(col))
-            this.getFooter().querySelector('#cursor-position').innerText = `Ln ${ln} Col ${col}`
+            this.getCursorPositionInFooter().innerText = `Ln ${ln} Col ${col}`
+    }
+
+    static setDefaultEOLInFooter() {
+        const defaultEOL = this.activeEditor.DEFAULT_EOL
+        const eolText = defaultEOL === '\n' ? 'LF' : 'CRLF'
+        
+        this.getFooter().querySelector('#default-eol').innerText = eolText
     }
 
     static createHighLightCodeThread() {
@@ -134,7 +152,8 @@ export class CatApp {
         if (this.editors.length === 0) {
             router.push('/')
             this.activeEditor = null
-            this.getFooter().querySelector('#cursor-position').innerText = ''
+            this.getCursorPositionInFooter().innerText = ''
+            this.getDefaultEOLInFooter().innerText = ''
             return
         }
 

@@ -44,6 +44,8 @@ export class TextEditor {
     IS_SHIFT_KEY_PRESSED = false
     deletedLinesIntervalBuffer = {}
 
+    DEFAULT_EOL
+
     TEMP_LineBeforeInsert = null
     TEMP_ColBeforeInsert = null
     TEMP_charLengthToDelete = 0
@@ -293,15 +295,32 @@ export class TextEditor {
         this.emitter = new Emitter()
         let textBufferInstance = new PieceTable(this)
         let fileInfoInstance = new FileInfo()
+        this.DEFAULT_EOL = window.electron.DEFAULT_SYSTEM_EOL
 
         if (fileData) {
             textBufferInstance = new PieceTable(this, fileData.buffer)
             fileInfoInstance = new FileInfo(fileData.name, fileData.path, fileData.extension)
+            this.DEFAULT_EOL = fileData.defaultEOL || window.electron.DEFAULT_SYSTEM_EOL
         }
+
+        console.log(this.DEFAULT_EOL)
 
         this.id = CatApp.editors.length + 1
         this.textBuffer = textBufferInstance
         this.fileInfo = fileInfoInstance
+    }
+
+    detectEOL(text) {
+        const crlf = text.indexOf('\r\n')
+        if (crlf !== -1) return '\r\n'
+        return '\n'
+    }
+
+    normalizeEOL(text, eol = null) {
+        if (eol === null)
+            eol = this.DEFAULT_EOL
+
+        return text.replace(/\r\n|\r|\n/g, eol)
     }
 
     renderDOM() {
@@ -666,6 +685,9 @@ export class TextEditor {
 
         if (this.DOM.editorElement && this.DOM.editorElement.children.length === 0)
             this.renderContent()
+
+        CatApp.setDefaultEOLInFooter()
+        CatApp.setCursorPositionInFooter()
     }
 
     controlActions(char) {
@@ -971,6 +993,14 @@ export class TextEditor {
     }
 
     insertText(text) {
+        const textLineFeedCount = (text.match(/\n|\r\n|\r/g) || []).length
+        let currentTextEOL = this.DEFAULT_EOL
+
+        if (textLineFeedCount > 0) {
+            currentTextEOL = this.detectEOL(text)
+            text = this.normalizeEOL(text, currentTextEOL)
+        }
+
         // if has selection, replace all the selected text with the typed char
         // that is, delete the selected data (call handleDelete) and insert the char
         //if (!this.selection.isCollapsed()) {
@@ -978,7 +1008,6 @@ export class TextEditor {
         //}
 
         this.intermediaryBufferToInsertAtPiece += text
-        const textLineFeedCount = (text.match(/\n|\r\n/g) || []).length
         const lineBeforeInsert = this.cursor.getLine()
         const columnBeforeInsert = this.cursor.getCol()
 
@@ -1000,11 +1029,11 @@ export class TextEditor {
                 // the viewport is small enough for us to do a .split operation, it will be fast and practical
 
                 this.incrementLineModelPositions(lineBeforeInsert, textLineFeedCount)
-                const arrayOfLines = text.split(/\r\n|\r|\n/)
+                const arrayOfLines = text.split(currentTextEOL)
 
                 const firstLineContent = arrayOfLines[0]
                 currentLineModelContent.splice(columnBeforeInsert, 0, firstLineContent)
-                currentLineModel.update(currentLineModelContent.join('').replace(/\r\n|\r|\n/, ''))
+                currentLineModel.update(currentLineModelContent.join('').replace(currentTextEOL, ''))
 
                 for (let index = 1; index < arrayOfLines.length; index++) {
                     const content = arrayOfLines[index]

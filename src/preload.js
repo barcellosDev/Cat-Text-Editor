@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electron', {
+    DEFAULT_SYSTEM_EOL: process.platform === 'win32' ? '\r\n' : '\n',
+    
     onChangeRoute: (callback) => {
         ipcRenderer.once('change-route', (ev, path) => callback(path))
     },
