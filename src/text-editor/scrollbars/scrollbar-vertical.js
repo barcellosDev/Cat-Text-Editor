@@ -13,6 +13,7 @@ export class ScrollBarVertical {
     thumb
     track
     isDragging = false
+    lastScrollTop = 0
 
     /** @type {TextEditor} */
     textEditor
@@ -40,7 +41,6 @@ export class ScrollBarVertical {
         this.thumb = thumb
 
 
-
         let startY;
         let startScrollTop;
 
@@ -57,14 +57,25 @@ export class ScrollBarVertical {
             const dy = e.pageY - startY;
             const scrollRatioV = this.textEditor.DOM.textEditorContentWrapper.scrollHeight / this.container.clientHeight;
             this.textEditor.DOM.textEditorContentWrapper.scrollTop = startScrollTop + dy * scrollRatioV;
-
-            this.textEditor.emitter.emit("vertical-scroll")
+            
             this.updateThumb()
+            
+            if (this.textEditor.DOM.textEditorContentWrapper.scrollTop !== this.lastScrollTop) {
+                this.textEditor.emitter.emit("vertical-scroll")
+            }
+            
+            this.lastScrollTop = this.textEditor.DOM.textEditorContentWrapper.scrollTop
         })
 
         this.textEditor.DOM.textEditorContentWrapper.addEventListener('wheel', () => {
-            this.textEditor.emitter.emit("vertical-scroll")
             this.updateThumb()
+
+            if (this.textEditor.DOM.textEditorContentWrapper.scrollTop !== this.lastScrollTop) {
+                this.textEditor.emitter.emit("vertical-scroll")
+            }
+            
+            this.lastScrollTop = this.textEditor.DOM.textEditorContentWrapper.scrollTop
+            
         }, { passive: true })
         
         this.textEditor.DOM.textEditorMainContainer.appendChild(this.container)

@@ -69,6 +69,14 @@ export class Cursor {
         }
     }
 
+    hideLineSelectedPosition() {
+        this.textEditor.DOM.lineSelected.style.display = 'none'
+    }
+    
+    showLineSelectedPosition() {
+        this.textEditor.DOM.lineSelected.style.display = 'block'
+    }
+
     updateLineSelectedPosition() {
         this.textEditor.DOM.lineSelected.style.height = `${CatApp.LINE_HEIGHT}px`
         this.textEditor.DOM.lineSelected.style.top = `${this.line * CatApp.LINE_HEIGHT}px`

@@ -55,7 +55,7 @@ export class TextEditor {
 
     timeoutBatchDelete = null
     timeoutBatchInput = null
-    timeoutBatchDeleteTimeInMS = 500
+    timeoutBatchDeleteTimeInMS = 1000
     timeoutBatchInputTimeInMS = 500
 
     emitter = null
@@ -292,15 +292,15 @@ export class TextEditor {
     }
 
     constructor(fileData = null) {
+        this.DEFAULT_EOL = window.electron.DEFAULT_SYSTEM_EOL
         this.emitter = new Emitter()
         let textBufferInstance = new PieceTable(this)
         let fileInfoInstance = new FileInfo()
-        this.DEFAULT_EOL = window.electron.DEFAULT_SYSTEM_EOL
 
         if (fileData) {
+            this.DEFAULT_EOL = fileData.defaultEOL || window.electron.DEFAULT_SYSTEM_EOL
             textBufferInstance = new PieceTable(this, fileData.buffer)
             fileInfoInstance = new FileInfo(fileData.name, fileData.path, fileData.extension)
-            this.DEFAULT_EOL = fileData.defaultEOL || window.electron.DEFAULT_SYSTEM_EOL
         }
 
         console.log(this.DEFAULT_EOL)
@@ -507,6 +507,9 @@ export class TextEditor {
 
             this.DOM.editorElement.onmousemove = null
             this.cursor.resumeBlink()
+
+            if (this.selection.isCollapsed())
+                this.cursor.showLineSelectedPosition()
         })
 
         this.DOM.editorElement.addEventListener('mousedown', (ev) => {
@@ -559,7 +562,7 @@ export class TextEditor {
                     column: this.cursor.getCol()
                 })
 
-
+                this.cursor.hideLineSelectedPosition()
                 CatApp.setCursorPositionInFooter()
             }
 
@@ -922,17 +925,16 @@ export class TextEditor {
             return this.handleDeleteWithSelection()
 
         if (this.cursor.getLine() > 0 && this.cursor.getCol() === 0) {
-            const deletedLine = this.getLineModel().getContent()
+            const deletedLine = this.getLineModel()
 
             this.deleteLineModel()
-            this.cursor.decrementLine()
-
-            this.cursor.setCol(this.getLineModel().getContent().length)
-
-            const currentLineModel = this.getLineModel()
-            currentLineModel.update(currentLineModel.getContent() + deletedLine, true)
-
             this.decrementLineModelPositions()
+            this.cursor.decrementLine()
+            
+            const currentLineModel = this.getLineModel()
+            
+            currentLineModel.update(currentLineModel.getContent() + deletedLine.getContent(), true)
+            this.cursor.setCol(currentLineModel.getContent().length)
         }
 
         if (this.cursor.getLine() > 0 && this.cursor.getCol() > 0) {
@@ -953,8 +955,8 @@ export class TextEditor {
         this.timeoutBatchDelete = setTimeout(() => {
             const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.cursor.getLine(), this.cursor.getCol())
             this.textBuffer.delete(documentOffset, this.TEMP_charLengthToDelete)
-            this.highlightContent().then(() => this.updateDOM())
             this.TEMP_charLengthToDelete = 0
+            this.highlightContent().then(() => this.updateDOM())
         }, this.timeoutBatchDeleteTimeInMS)
     }
 
@@ -976,18 +978,17 @@ export class TextEditor {
     }
 
     decrementLineModelPositions(indexToStart = null, offset = 1) {
-        for (let index = (indexToStart ?? this.cursor.getLine()); index < this.lineModelBuffer.size; index++) {
-            const lineModel = this.lineModelBuffer.get(index + 1)
+        for (let index = (indexToStart ?? this.cursor.getLine()) + 1; index < this.lineModelBuffer.size; index++) {
+            const lineModel = this.lineModelBuffer.get(index)
             const newBufferRow = Number(lineModel.lineElement.getAttribute('buffer-row')) - offset
-
-            this.lineModelBuffer.delete(index)
 
             lineModel.lineElement.setAttribute('buffer-row', newBufferRow)
             lineModel.lineElement.style.top = `${lineModel.lineElement.offsetTop - CatApp.LINE_HEIGHT * offset}px`
-
+            
             lineModel.lineCountElement.style.top = `${lineModel.lineCountElement.offsetTop - CatApp.LINE_HEIGHT * offset}px`
-            lineModel.lineCountElement.innerText = lineModel.index + 1 - offset
-
+            lineModel.lineCountElement.innerText = (lineModel.index - offset) + 1
+            
+            this.lineModelBuffer.delete(index)
             this.lineModelBuffer.set(newBufferRow, lineModel)
         }
     }

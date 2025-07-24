@@ -79,8 +79,11 @@ export class PieceTable {
     cachedLinesContent = new Map() // Cache for lines content
     cachedLinesContentHighlighted = new Map() // Cache for highlighted lines content
 
+    EOLRegexp
+
     constructor(textEditor, chunks = []) {
         this.textEditor = textEditor
+        this.EOLRegexp = new RegExp(textEditor.DEFAULT_EOL, 'g')
 
         if (chunks.length === 0) {
             this.buffers.original[0] = new StringBuffer('', [0])
@@ -156,7 +159,7 @@ export class PieceTable {
 
                     const currentPieceStartOffset = buffer.lineStarts[currentPiece.start.line] + currentPiece.start.column
                     const currentPieceSubstring = buffer.buffer.substring(currentPieceStartOffset, currentPieceStartOffset + localIndex)
-                    const newLineFeedCount = (currentPieceSubstring.match(/\n/g) || []).length
+                    const newLineFeedCount = (currentPieceSubstring.match(this.EOLRegexp) || []).length
 
                     const currentPieceNewLine = currentPiece.start.line + newLineFeedCount
                     const currentPieceNewColumn = (currentPieceStartOffset + localIndex) - buffer.lineStarts[currentPieceNewLine]
@@ -181,7 +184,7 @@ export class PieceTable {
 
                     const currentPieceStartOriginalOffset = buffer.lineStarts[currentPiece.start.line] + currentPiece.start.column
                     const currentPieceStartNewSubstring = buffer.buffer.substring(currentPieceStartOriginalOffset, currentPieceStartOriginalOffset + localIndex)
-                    const newStartLineFeedCount = (currentPieceStartNewSubstring.match(/\n/g) || []).length
+                    const newStartLineFeedCount = (currentPieceStartNewSubstring.match(this.EOLRegexp) || []).length
 
                     const currentPieceNewStartLine = currentPiece.start.line + newStartLineFeedCount
                     const currentPieceNewStartColumn = (currentPieceStartOriginalOffset + localIndex) - buffer.lineStarts[currentPieceNewStartLine]
@@ -189,7 +192,7 @@ export class PieceTable {
                     const newStartOffset = buffer.lineStarts[currentPieceNewStartLine] + currentPieceNewStartColumn
 
                     const currentPieceEndNewSubstring = buffer.buffer.substring(newStartOffset, newStartOffset + remaining)
-                    const newLineFeedCount = (currentPieceEndNewSubstring.match(/\n/g) || []).length
+                    const newLineFeedCount = (currentPieceEndNewSubstring.match(this.EOLRegexp) || []).length
 
                     const currentPieceEndNewColumn = newStartOffset + remaining - buffer.lineStarts[newStartLineFeedCount + newLineFeedCount]
 
@@ -263,7 +266,7 @@ export class PieceTable {
 
                     const currentPieceStartOffset = buffer.lineStarts[currentPiece.start.line] + currentPiece.start.column
                     const currentPieceSubstring = buffer.buffer.substring(currentPieceStartOffset, currentPieceStartOffset + preDeleteLen)
-                    const newLineFeedCount = (currentPieceSubstring.match(/\n/g) || []).length
+                    const newLineFeedCount = (currentPieceSubstring.match(this.EOLRegexp) || []).length
 
                     const currentPieceNewLine = currentPiece.start.line + newLineFeedCount
                     const currentPieceNewColumn = (currentPieceStartOffset + preDeleteLen) - buffer.lineStarts[currentPieceNewLine]
@@ -288,13 +291,13 @@ export class PieceTable {
 
                     if (currentPieceNewStartOffset >= currentPieceOriginalStartOffset) {
                         const bufferSubstring = buffer.buffer.substring(currentPieceOriginalStartOffset, currentPieceNewStartOffset)
-                        const bufferSubstringLineCount = (bufferSubstring.match(/\n/g) || []).length
+                        const bufferSubstringLineCount = (bufferSubstring.match(this.EOLRegexp) || []).length
 
                         currentPieceNewStartLine += bufferSubstringLineCount
                         currentPieceNewStartColumn = currentPieceNewStartOffset - buffer.lineStarts[currentPieceNewStartLine]
                     } else {
                         const bufferSubstring = buffer.buffer.substring(currentPieceNewStartOffset, currentPieceOriginalStartOffset)
-                        const bufferSubstringLineCount = (bufferSubstring.match(/\n/g) || []).length
+                        const bufferSubstringLineCount = (bufferSubstring.match(this.EOLRegexp) || []).length
 
                         currentPieceNewStartLine -= bufferSubstringLineCount
                         currentPieceNewStartColumn = currentPieceNewStartOffset - buffer.lineStarts[currentPieceNewStartLine]
@@ -302,7 +305,7 @@ export class PieceTable {
 
 
                     const currentPieceNewEndBufferSubstring = buffer.buffer.substring(buffer.lineStarts[currentPieceNewStartLine], buffer.lineStarts[currentPieceNewStartLine] + postDeleteLen)
-                    const bufferSubstringLineCount = (currentPieceNewEndBufferSubstring.match(/\n/g) || []).length
+                    const bufferSubstringLineCount = (currentPieceNewEndBufferSubstring.match(this.EOLRegexp) || []).length
 
                     const currentPieceEndNewLine = currentPieceNewStartLine + bufferSubstringLineCount
                     const currentPieceEndNewColumn = (buffer.lineStarts[currentPieceNewStartLine] + postDeleteLen) - buffer.lineStarts[currentPieceEndNewLine]
@@ -372,7 +375,7 @@ export class PieceTable {
             }
 
             // add the text before the first line start in this piece
-            lineContent += buffer.substring(pieceStartOffset, lineStarts[pieceStartLine + 1]).replace(/\n|\r\n/, '')
+            lineContent += buffer.substring(pieceStartOffset, lineStarts[pieceStartLine + 1]).replace(this.EOLRegexp, '')
             if (globalLine >= startLine && (endLine === null || globalLine <= endLine)) {
                 lines[lineIndex++] = lineContent
                 this.setLineContentInCache(globalLine, endLine, lineContent, false)
@@ -380,7 +383,7 @@ export class PieceTable {
             globalLine++
 
             for (let line = pieceStartLine + 1; line < pieceEndLine; line++) {
-                lineContent = buffer.substring(lineStarts[line], lineStarts[line + 1]).replace(/\n|\r\n/, '')
+                lineContent = buffer.substring(lineStarts[line], lineStarts[line + 1]).replace(this.EOLRegexp, '')
                 if (globalLine >= startLine && (endLine === null || globalLine <= endLine)) {
                     lines[lineIndex++] = lineContent
                     this.setLineContentInCache(globalLine, endLine, lineContent, false)
@@ -481,7 +484,7 @@ export class PieceTable {
 
                 content += buffer.substring(pieceStartOffset, lineStarts[currentPiece.start.line + 1])
 
-                if (content.match(/\n|\r\n/g).length > 0) {
+                if (content.match(this.EOLRegexp).length > 0) {
                     break
                 }
             }
@@ -490,7 +493,7 @@ export class PieceTable {
             content += chunk.buffer.substring(chunk.lineStarts[line], chunk.lineStarts[line + 1])
         }
 
-        return { content: content.replace(/\n|\r\n/g, ''), isHighlighted: false }
+        return { content: content.replace(this.EOLRegexp, ''), isHighlighted: false }
     }
 
     getCachedLine(line) {
@@ -519,8 +522,9 @@ export class PieceTable {
     }
 
     getText(startLine = 0, endLine = null) {
-        const linesContent = this.getLinesContent(startLine, endLine)
-        return linesContent.join('\n')
+        let linesContent = this.getLinesContent(startLine, endLine)
+        linesContent = linesContent.join(this.textEditor.DEFAULT_EOL)
+        return linesContent
     }
 
     computeBufferMetaData() {
