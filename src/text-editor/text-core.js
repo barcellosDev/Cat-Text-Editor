@@ -42,13 +42,11 @@ export class TextEditor {
     TAB_VALUE = '&nbsp;&nbsp;&nbsp;&nbsp;'
     EXTRA_BUFFER_ROW_OFFSET = 30
     IS_SHIFT_KEY_PRESSED = false
-    deletedLinesIntervalBuffer = {}
 
     DEFAULT_EOL
 
-    TEMP_LineBeforeInsert = null
-    TEMP_ColBeforeInsert = null
-    TEMP_charLengthToDelete = 0
+    TEMP_CursorBeforeInsert = null
+    TEMP_CursorBeforeDelete = null
 
     currentLineintermediaryBuffer = null
     intermediaryBufferToInsertAtPiece = ''
@@ -292,15 +290,19 @@ export class TextEditor {
     }
 
     constructor(fileData = null) {
+        let textBufferInstance
+        let fileInfoInstance
+
         this.DEFAULT_EOL = window.electron.DEFAULT_SYSTEM_EOL
         this.emitter = new Emitter()
-        let textBufferInstance = new PieceTable(this)
-        let fileInfoInstance = new FileInfo()
 
         if (fileData) {
             this.DEFAULT_EOL = fileData.defaultEOL || window.electron.DEFAULT_SYSTEM_EOL
             textBufferInstance = new PieceTable(this, fileData.buffer)
             fileInfoInstance = new FileInfo(fileData.name, fileData.path, fileData.extension)
+        } else {
+            textBufferInstance = new PieceTable(this)
+            fileInfoInstance = new FileInfo()
         }
 
         console.log(this.DEFAULT_EOL)
@@ -418,8 +420,6 @@ export class TextEditor {
             this.verticalScrollbar.isDragging = false
             this.horizontalScrollBar.isDragging = false
             document.body.style.userSelect = '';
-            this.TEMP_LineBeforeInsert = this.cursor.getLine()
-            this.TEMP_ColBeforeInsert = this.cursor.getCol()
         })
 
         this.DOM.editorElement.addEventListener('click', () => {
@@ -477,7 +477,7 @@ export class TextEditor {
                 let newOffsetX = Math.floor(selectedTextRightOffset)
 
                 if (range.endContainer?.classList?.contains('line')) {
-                    const nextRowBufferPosBasedOnInitialPos = this.selection.getStart()[0] + 1
+                    const nextRowBufferPosBasedOnInitialPos = this.selection.getStart().line + 1
 
                     if (this.textBuffer.getLineLength(nextRowBufferPosBasedOnInitialPos) !== null) {
                         this.cursor.setLine(nextRowBufferPosBasedOnInitialPos)
@@ -510,6 +510,8 @@ export class TextEditor {
 
             if (this.selection.isCollapsed())
                 this.cursor.showLineSelectedPosition()
+
+            console.log(this.textBuffer.getLineColumnToBufferOffset(this.cursor.getLine(), this.cursor.getCol()))
         })
 
         this.DOM.editorElement.addEventListener('mousedown', (ev) => {
@@ -779,6 +781,8 @@ export class TextEditor {
         const keyCode = ev.keyCode
         let char = ev.key
 
+        console.log(keyCode, char)
+
         if (!this.isCharValid(keyCode))
             return
 
@@ -797,6 +801,10 @@ export class TextEditor {
 
         if (keyCode === 32) { // space
             char = ' '
+        }
+
+        if (keyCode === 13) { // enter
+            char = this.DEFAULT_EOL
         }
 
         this.insertText(char)
@@ -863,58 +871,33 @@ export class TextEditor {
     }
 
     handleDeleteWithSelection() {
-        const selectionStartRow = this.selection.getStart()[0]
-        const selectionEndRow = this.selection.getEnd()[0]
+        const selectionStartRow = this.selection.getStart().line
+        const selectionEndRow = this.selection.getEnd().line
 
-        const selectionStartColumn = this.selection.getStart()[1]
-        const selectionEndColumn = this.selection.getEnd()[1]
+        const selectionStartColumn = this.selection.getStart().col
+        const selectionEndColumn = this.selection.getEnd().col
 
         if (selectionStartRow > selectionEndRow) {
             this.verticalScrollbar.scrollNowTo(this.getBufferLineToScreenY(selectionEndRow))
 
-            this.deletedLinesIntervalBuffer = {
-                amount: this.selection.buffer[1] - this.selection.buffer[0],
-                start: this.selection.buffer[0],
-                end: this.selection.buffer[1],
-            }
-
             if (this.selection.isReversed()) {
-                this.deletedLinesIntervalBuffer.start = this.selection.buffer[1]
-                this.deletedLinesIntervalBuffer.end = this.selection.buffer[0]
+                //
             }
-
-            this.renderContent()
         }
 
         if (selectionStartRow === selectionEndRow && (selectionStartColumn !== selectionEndColumn)) {
             if (selectionStartColumn < selectionEndColumn) {
-                this.textBuffer[this.cursor.getLine()].splice(selectionStartColumn, selectionEndColumn - selectionStartColumn)
-                this.getLineModel().update()
-                this.cursor.setCol(selectionStartColumn)
+                //
             } else {
-                this.textBuffer[this.cursor.getLine()].splice(selectionEndColumn, selectionStartColumn - selectionEndColumn)
-                this.getLineModel().update()
-                this.cursor.setCol(selectionEndColumn)
+                //
             }
         }
 
         if (selectionEndRow > selectionStartRow) {
             this.verticalScrollbar.scrollNowTo(this.getBufferLineToScreenY(selectionStartRow))
 
-            this.deletedLinesIntervalBuffer = {
-                amount: this.selection.buffer[1] - this.selection.buffer[0],
-                start: this.selection.buffer[0],
-                end: this.selection.buffer[1],
-            }
-
-            if (this.selection.isReversed()) {
-                this.deletedLinesIntervalBuffer.start = this.selection.buffer[1]
-                this.deletedLinesIntervalBuffer.end = this.selection.buffer[0]
-            }
-
-            this.renderContent()
+            
         }
-
     }
 
     handleDelete() {
@@ -923,6 +906,11 @@ export class TextEditor {
 
         if (!this.selection.isCollapsed())
             return this.handleDeleteWithSelection()
+
+        // set TEMP_CursorBeforeDelete if not already set so batch deletes work
+        if (!this.TEMP_CursorBeforeDelete) {
+            this.TEMP_CursorBeforeDelete = { line: this.cursor.getLine(), col: this.cursor.getCol() }
+        }
 
         if (this.cursor.getLine() > 0 && this.cursor.getCol() === 0) {
             const deletedLine = this.getLineModel()
@@ -949,14 +937,14 @@ export class TextEditor {
             this.cursor.decrementCol()
         }
 
-        this.TEMP_charLengthToDelete++
-
         clearTimeout(this.timeoutBatchDelete)
         this.timeoutBatchDelete = setTimeout(() => {
-            const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.cursor.getLine(), this.cursor.getCol())
-            this.textBuffer.delete(documentOffset, this.TEMP_charLengthToDelete)
-            this.TEMP_charLengthToDelete = 0
+            const currentDocumentOffset = this.textBuffer.getLineColumnToBufferOffset(this.cursor.getLine(), this.cursor.getCol())
+            const documentOffsetBeforeDelete = this.textBuffer.getLineColumnToBufferOffset(this.TEMP_CursorBeforeDelete.line, this.TEMP_CursorBeforeDelete.col)
+
+            this.textBuffer.delete(currentDocumentOffset, documentOffsetBeforeDelete - currentDocumentOffset)
             this.highlightContent().then(() => this.updateDOM())
+            this.TEMP_CursorBeforeDelete = null
         }, this.timeoutBatchDeleteTimeInMS)
     }
 
@@ -1012,6 +1000,13 @@ export class TextEditor {
         const lineBeforeInsert = this.cursor.getLine()
         const columnBeforeInsert = this.cursor.getCol()
 
+        if (!this.TEMP_CursorBeforeInsert) {
+            this.TEMP_CursorBeforeInsert = { line: lineBeforeInsert, col: columnBeforeInsert }
+        }
+
+        console.log(this.intermediaryBufferToInsertAtPiece)
+        console.log(textLineFeedCount)
+
         // enter or copied many lines
         if (textLineFeedCount > 0) {
             const { extraStart, extraEnd } = this.getExtraViewPortRange()
@@ -1063,25 +1058,27 @@ export class TextEditor {
         }
 
         clearTimeout(this.timeoutBatchInput)
-        this.timeoutBatchInput = setTimeout(() => {
-            // TIMEOUT TO INSERT TEXT TO PIECE TABLE
-            // THIS IS A BATCH TYPING METHOD
 
-            console.log(this.intermediaryBufferToInsertAtPiece)
-            console.log(this.currentLineintermediaryBuffer)
-
-            const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.TEMP_LineBeforeInsert, this.TEMP_ColBeforeInsert)
-            console.log(documentOffset)
-
-            this.textBuffer.insert(documentOffset, this.intermediaryBufferToInsertAtPiece)
-
-            this.highlightContent().then(() => this.updateDOM())
-
-            this.intermediaryBufferToInsertAtPiece = ''
-            this.currentLineintermediaryBuffer = null
-            this.TEMP_LineBeforeInsert = this.cursor.getLine()
-            this.TEMP_ColBeforeInsert = this.cursor.getCol()
-        }, this.timeoutBatchInputTimeInMS)
+        if (this.intermediaryBufferToInsertAtPiece.length > 0) {
+            this.timeoutBatchInput = setTimeout(() => {
+                // TIMEOUT TO INSERT TEXT TO PIECE TABLE
+                // THIS IS A BATCH TYPING METHOD
+    
+                console.log(this.intermediaryBufferToInsertAtPiece)
+                console.log(this.currentLineintermediaryBuffer)
+    
+                const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.TEMP_CursorBeforeInsert.line, this.TEMP_CursorBeforeInsert.col)
+                console.log(documentOffset)
+    
+                this.textBuffer.insert(documentOffset, this.intermediaryBufferToInsertAtPiece)
+    
+                this.highlightContent().then(() => this.updateDOM())
+    
+                this.intermediaryBufferToInsertAtPiece = ''
+                this.currentLineintermediaryBuffer = null
+                this.TEMP_CursorBeforeInsert = null
+            }, this.timeoutBatchInputTimeInMS)
+        }
     }
 
     isCharValid(keyCode) {
@@ -1238,7 +1235,7 @@ export class TextEditor {
 
     getViewPortRange() {
         const firstLineOffset = Math.max(0, Math.floor(this.DOM.textEditorContentWrapper.scrollTop / CatApp.LINE_HEIGHT))
-        const lastLineOffset = Math.min(this.textBuffer.lineCount - 1, Math.ceil((this.DOM.textEditorContentWrapper.offsetHeight + this.DOM.textEditorContentWrapper.scrollTop) / CatApp.LINE_HEIGHT))
+        const lastLineOffset = Math.min(this.textBuffer.lineCount, Math.ceil((this.DOM.textEditorContentWrapper.offsetHeight + this.DOM.textEditorContentWrapper.scrollTop) / CatApp.LINE_HEIGHT))
 
         return { start: firstLineOffset, end: lastLineOffset }
     }
@@ -1247,7 +1244,7 @@ export class TextEditor {
         const { start, end } = this.getViewPortRange()
 
         const extraStart = Math.max(0, start - this.EXTRA_BUFFER_ROW_OFFSET)
-        const extraEnd = Math.min(this.textBuffer.lineCount - 1, end + this.EXTRA_BUFFER_ROW_OFFSET)
+        const extraEnd = Math.min(this.textBuffer.lineCount, end + this.EXTRA_BUFFER_ROW_OFFSET)
 
         return { extraStart, extraEnd }
     }

@@ -2,21 +2,25 @@ import { CatApp } from "./cat-app"
 import { TextEditor } from "./text-core"
 
 export class Selection {
-    buffer = [[], []]
+    buffer
 
     /** @type {TextEditor} */
     textEditor
 
     constructor(textEditor) {
         this.textEditor = textEditor
+        this.buffer = {
+            start: { line: 0, col: 0 },
+            end: { line: 0, col: 0 }
+        }
     }
 
     getStart() {
-        return this.buffer[0]
+        return this.buffer.start
     }
 
     getEnd() {
-        return this.buffer[1]
+        return this.buffer.end
     }
 
     setStart({
@@ -24,10 +28,10 @@ export class Selection {
         column = null
     }) {
         if (row !== null)
-            this.buffer[0][0] = row
+            this.buffer.start.line = row
 
         if (column !== null)
-            this.buffer[0][1] = column
+            this.buffer.start.col = column
     }
 
     setEnd({
@@ -35,10 +39,10 @@ export class Selection {
         column = null
     }) {
         if (row !== null)
-            this.buffer[1][0] = row
+            this.buffer.end.line = row
 
         if (column !== null)
-            this.buffer[1][1] = column
+            this.buffer.end.col = column
 
         this.render()
     }
@@ -51,14 +55,14 @@ export class Selection {
         const { extraStart, extraEnd } = this.textEditor.getExtraViewPortRange()
 
         // forward selection (normal)
-        if (this.getStart()[0] < this.getEnd()[0]) {
-            let start = this.getStart()[0]
+        if (this.getStart().line < this.getEnd().line) {
+            let start = this.getStart().line
 
             if (start < extraStart) {
                 start = extraStart
             }
 
-            let end = this.getEnd()[0]
+            let end = this.getEnd().line
 
             if (end > extraEnd) {
                 end = extraEnd
@@ -73,8 +77,8 @@ export class Selection {
 
                 let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
 
-                if (row === this.getStart()[0]) {
-                    newLeft = this.textEditor.getBufferColumnToScreenX(this.getStart()[1])
+                if (row === this.getStart().line) {
+                    newLeft = this.textEditor.getBufferColumnToScreenX(this.getStart().col)
                     newWidth = newWidth - newLeft
                 }
 
@@ -89,13 +93,13 @@ export class Selection {
 
         // backward selection
         if (this.isReversed()) {
-            let start = this.getStart()[0]
+            let start = this.getStart().line
 
             if (start > extraEnd) {
                 start = extraEnd
             }
 
-            let end = this.getEnd()[0]
+            let end = this.getEnd().line
 
             if (end < extraStart) {
                 end = extraStart
@@ -108,11 +112,11 @@ export class Selection {
 
                 let newLeft = 0
                 let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
-                
+
                 const newTop = this.textEditor.getBufferLineToScreenY(row)
 
-                if (row === this.getStart()[0]) {
-                    newWidth = this.textEditor.getBufferColumnToScreenX(this.getStart()[1])
+                if (row === this.getStart().line) {
+                    newWidth = this.textEditor.getBufferColumnToScreenX(this.getStart().col)
                 }
 
                 if (!selectionDiv) {
@@ -125,10 +129,10 @@ export class Selection {
         }
 
 
-        let left = this.textEditor.getBufferColumnToScreenX(this.getStart()[1])
-        let right = this.textEditor.getBufferColumnToScreenX(this.getEnd()[1])
+        let left = this.textEditor.getBufferColumnToScreenX(this.getStart().col)
+        let right = this.textEditor.getBufferColumnToScreenX(this.getEnd().col)
         let width = right - left
-        let top = this.textEditor.getBufferLineToScreenY(this.getEnd()[0])
+        let top = this.textEditor.getBufferLineToScreenY(this.getEnd().line)
 
         if (width < 0) {
             left += width
@@ -160,10 +164,10 @@ export class Selection {
                 const bufferRow = Number(div.getAttribute('buffer-row'))
 
                 if (this.isReversed()) {
-                    if (bufferRow < this.getEnd()[0] || bufferRow > this.getStart()[0])
+                    if (bufferRow < this.getEnd().line || bufferRow > this.getStart().line)
                         div?.remove?.()
                 } else {
-                    if (bufferRow > this.getEnd()[0] || bufferRow < this.getStart()[0])
+                    if (bufferRow > this.getEnd().line || bufferRow < this.getStart().line)
                         div?.remove?.()
                 }
             })
@@ -210,37 +214,37 @@ export class Selection {
 
     isReversed() {
         return (
-            this.getStart()[0] > this.getEnd()[0] ||
-            (this.getStart()[0] === this.getEnd()[0] && this.getStart()[1] > this.getEnd()[1])
+            this.getStart().line > this.getEnd().line ||
+            (this.getStart().line === this.getEnd().line && this.getStart().col > this.getEnd().col)
         )
     }
 
     isCollapsed() {
         return (
-            this.getStart()[0] === this.getEnd()[0] &&
-            this.getStart()[1] === this.getEnd()[1]
+            this.getStart().line === this.getEnd().line &&
+            this.getStart().col === this.getEnd().col
         )
     }
 
     isMultiLine() {
-        return Math.abs(this.getStart()[0] - this.getEnd()[0]) > 0
+        return Math.abs(this.getStart().line - this.getEnd().line) > 0
     }
 
     collapseToStart() {
         this.textEditor.DOM.selectionArea.innerHTML = ''
         window.getSelection().removeAllRanges()
 
-        this.buffer[1] = this.buffer[0]
-        this.textEditor.cursor.setLine(this.getStart()[0])
-        this.textEditor.cursor.setCol(this.getStart()[1])
+        this.buffer.end = this.buffer.start
+        this.textEditor.cursor.setLine(this.getStart().line)
+        this.textEditor.cursor.setCol(this.getStart().col)
     }
 
     collapseToEnd() {
         this.textEditor.DOM.selectionArea.innerHTML = ''
         window.getSelection().removeAllRanges()
-        this.buffer[0] = this.buffer[1]
-        this.textEditor.cursor.setLine(this.getEnd()[0])
-        this.textEditor.cursor.setCol(this.getEnd()[1])
+        this.buffer.start = this.buffer.end
+        this.textEditor.cursor.setLine(this.getEnd().line)
+        this.textEditor.cursor.setCol(this.getEnd().col)
     }
 
     getMaxRenderedBufferRow() {
@@ -276,7 +280,10 @@ export class Selection {
     }
 
     clear() {
-        this.buffer = [[], []]
+        this.buffer = {
+            start: { line: 0, col: 0 },
+            end: { line: 0, col: 0 }
+        }
         this.textEditor.DOM.selectionArea.innerHTML = ''
     }
 }

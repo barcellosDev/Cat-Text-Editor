@@ -38,6 +38,15 @@ export class Cursor {
         this.startBlink()
     }
 
+    setVisible(visible) {
+        if (visible) {
+            this.element.style.visibility = 'visible'
+            return
+        }
+
+        this.element.style.visibility = 'hidden'
+    }
+
     startBlink() {
         this._blinkVisible = true
         this._lastBlinkTime = performance.now()
@@ -45,7 +54,7 @@ export class Cursor {
             if (!this.element) return
             if (now - this._lastBlinkTime >= this._blinkInterval) {
                 this._blinkVisible = !this._blinkVisible
-                this.element.style.visibility = this._blinkVisible ? 'visible' : 'hidden'
+                this.setVisible(this._blinkVisible)
                 this._lastBlinkTime = now
             }
             this._blinkFrame = requestAnimationFrame(blinkLoop)
@@ -96,8 +105,8 @@ export class Cursor {
     }
 
     setLine(line) {
-        if (line > this.textEditor.textBuffer.lineCount - 1) {
-            this.line = this.textEditor.textBuffer.lineCount - 1
+        if (line > this.textEditor.textBuffer.lineCount) {
+            this.line = this.textEditor.textBuffer.lineCount
         } else if (line < 0) {
             this.line = 0
         } else {

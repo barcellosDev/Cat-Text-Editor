@@ -434,14 +434,16 @@ export class PieceTable {
 
     findPieceByLine(line) {
         let offset = 0
+        let lineCount = 0
 
         for (let index = 0; index < this.pieces.length; index++) {
             const piece = this.pieces[index]
 
-            if (line >= offset && line <= offset + piece.lineFeedCount)
-                return { offset, piece }
+            if (line >= lineCount && line <= lineCount + piece.lineFeedCount)
+                return { lineCount, offset, piece, index }
 
-            offset += piece.lineFeedCount
+            offset    += piece.length
+            lineCount += piece.lineFeedCount
         }
 
         return null
@@ -452,9 +454,14 @@ export class PieceTable {
         if (cachedLine !== null)
             return cachedLine
 
-        const { piece, offset, index } = this.findPieceByLine(line)
+        const pieceData = this.findPieceByLine(line)
 
-        line -= offset
+        if (!pieceData)
+            return { content: '', isHighlighted: false }
+
+        const { piece, lineCount, index } = pieceData
+
+        line -= lineCount
 
         let chunk = this.buffers[piece.position.type][piece.position.bufferIndex]
 
@@ -528,7 +535,7 @@ export class PieceTable {
     }
 
     computeBufferMetaData() {
-        let lineCount = 1
+        let lineCount = 0
         let length = 0
 
         for (let index = 0; index < this.pieces.length; index++) {
@@ -543,23 +550,15 @@ export class PieceTable {
     }
 
     getLineColumnToBufferOffset(line, col) {
-        let offset = 0
-        let lineFeedCount = 0
-        let foundPiece = null
+        const pieceData = this.findPieceByLine(line)
 
-        for (const piece of this.pieces) {
-            if (line > lineFeedCount && line <= lineFeedCount + piece.lineFeedCount) {
-                foundPiece = piece
-                break
-            }
+        if (!pieceData)
+            throw new Error("Piece not found for the given line.")
 
-            offset += piece.length
-            lineFeedCount += piece.lineFeedCount
-        }
+        const { piece, lineCount, offset } = pieceData
+        const buffer = this.buffers[piece.position.type][piece.position.bufferIndex]
 
-        const buffer = this.buffers[foundPiece.position.type][foundPiece.position.bufferIndex]
-
-        return offset + buffer.lineStarts[line - lineFeedCount] + col
+        return offset + buffer.lineStarts[line - lineCount] + col
     }
 
     /**
