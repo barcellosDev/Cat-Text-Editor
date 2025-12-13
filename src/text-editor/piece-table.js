@@ -12,13 +12,77 @@ class Piece {
     end
     lineFeedCount
     length
+    EOLRegexp
 
-    constructor(position, start, end, lineFeedCount, length) {
+    constructor(position, start, end, lineFeedCount, length, EOLRegexp) {
         this.position = position;
         this.start = start;
         this.end = end;
         this.lineFeedCount = lineFeedCount;
         this.length = length;
+        this.EOLRegexp = EOLRegexp;
+    }
+
+    static findLineForOffset(lineStarts, offset) {
+        // binary search
+        let lo = 0;
+        let hi = lineStarts.length - 1;
+        if (offset < lineStarts[0]) return 0;
+        while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            const v = lineStarts[mid];
+            if (v === offset) return mid;
+            if (v < offset) {
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        // after loop, hi is the last index with lineStarts[hi] <= offset
+        return Math.max(0, hi);
+    }
+
+    slice(sliceStart, sliceEnd, buffers) {
+        const buffer = buffers[this.position.type][this.position.bufferIndex];
+
+        // baseOffset = absolute buffer offset of piece.start
+        const baseOffset = buffer.lineStarts[this.start.line] + this.start.column;
+
+        const absoluteStart = baseOffset + sliceStart;
+        const absoluteEnd = baseOffset + sliceEnd;
+
+        // clamp absoluteEnd to buffer length just in case
+        const bufferLength = buffer.buffer.length;
+        const absStartClamped = Math.max(0, Math.min(absoluteStart, bufferLength));
+        const absEndClamped = Math.max(0, Math.min(absoluteEnd, bufferLength));
+
+        // find lines for start and end using binary search in lineStarts
+        const startLine = Piece.findLineForOffset(buffer.lineStarts, absStartClamped);
+        const endLine = Piece.findLineForOffset(buffer.lineStarts, Math.max(0, absEndClamped - 1));
+
+        const startColumn = absStartClamped - buffer.lineStarts[startLine];
+        const endColumn = absEndClamped - buffer.lineStarts[endLine];
+
+        // substring to compute newline count
+        const text = buffer.buffer.substring(absStartClamped, absEndClamped);
+        const newlineMatches = text.match(this.EOLRegexp);
+        const newlineCount = (newlineMatches && newlineMatches.length) || 0;
+
+        // The `endLine` computed from binary search is consistent with newlineCount,
+        // but to be safe we calculate derivedEndLine:
+        const derivedEndLine = startLine + newlineCount;
+        // If derivedEndLine differs because of CRLF vs \n counting quirks, prefer the derived value
+        const finalEndLine = derivedEndLine;
+        const finalEndColumn = (absEndClamped - buffer.lineStarts[finalEndLine]);
+
+        return new Piece(
+            this.position,
+            { line: startLine, column: startColumn },
+            { line: finalEndLine, column: finalEndColumn },
+            newlineCount,
+            sliceEnd - sliceStart,
+            this.EOLRegexp
+        );
     }
 }
 
@@ -78,7 +142,6 @@ export class PieceTable {
     textEditor
     cachedLinesContent = new Map() // Cache for lines content
     cachedLinesContentHighlighted = new Map() // Cache for highlighted lines content
-
     EOLRegexp
 
     constructor(textEditor, chunks = []) {
@@ -101,7 +164,8 @@ export class PieceTable {
                 { line: 0, column: 0 },
                 { line: chunks[i].lineStarts.length - 1, column: chunks[i].buffer.length - chunks[i].lineStarts[chunks[i].lineStarts.length - 1] },
                 chunks[i].lineStarts.length - 1,
-                chunks[i].buffer.length
+                chunks[i].buffer.length,
+                this.EOLRegexp
             );
 
             this.buffers.original.push(chunks[i])
@@ -138,7 +202,8 @@ export class PieceTable {
                 column: this.buffers.added[0].buffer.length - this.buffers.added[0].lineStarts[this.buffers.added[0].lineStarts.length - 1]
             },
             adddedBufferLines.length - 1,
-            text.length
+            text.length,
+            this.EOLRegexp
         )
 
         let newPieces = []
@@ -170,7 +235,8 @@ export class PieceTable {
                         currentPiece.start,
                         { line: currentPieceNewLine, column: currentPieceNewColumn },
                         newLineFeedCount,
-                        localIndex
+                        localIndex,
+                        this.EOLRegexp
                     ))
                 }
 
@@ -202,7 +268,8 @@ export class PieceTable {
                         { line: currentPieceNewStartLine, column: currentPieceNewStartColumn },
                         { line: newStartLineFeedCount + newLineFeedCount, column: currentPieceEndNewColumn },
                         newLineFeedCount,
-                        remaining
+                        remaining,
+                        this.EOLRegexp
                     ))
                 }
 
@@ -243,97 +310,39 @@ export class PieceTable {
 
 
     delete(index, length) {
-        let newPieces = [];
+        const newPieces = [];
         let offset = 0;
 
-        for (let i = 0; i < this.pieces.length; i++) {
-            const currentPiece = this.pieces[i]
-            const pieceStart = offset
-            const pieceEnd = offset + currentPiece.length
+        for (const piece of this.pieces) {
+            const pieceStart = offset;
+            const pieceEnd = offset + piece.length;
 
-            if (pieceEnd <= index || index + length <= pieceStart) {
-                // the piece is outside the delete range
-                newPieces.push(currentPiece)
+            const delStart = index;
+            const delEnd = index + length;
+
+            const hasOverlap = !(pieceEnd <= delStart || pieceStart >= delEnd);
+
+            if (!hasOverlap) {
+                newPieces.push(piece);
             } else {
-                const deleteStart = Math.max(index, pieceStart);
-                const deleteEnd = Math.min(index + length, pieceEnd);
+                const leftLen = Math.max(0, delStart - pieceStart);
+                const rightStart = Math.max(0, delEnd - pieceStart);
+                const rightLen = piece.length - rightStart;
 
-                const preDeleteLen = deleteStart - pieceStart;
-                const postDeleteLen = pieceEnd - deleteEnd;
-
-                if (preDeleteLen > 0) {
-                    const buffer = this.buffers[currentPiece.position.type][currentPiece.position.bufferIndex]
-
-                    const currentPieceStartOffset = buffer.lineStarts[currentPiece.start.line] + currentPiece.start.column
-                    const currentPieceSubstring = buffer.buffer.substring(currentPieceStartOffset, currentPieceStartOffset + preDeleteLen)
-                    const newLineFeedCount = (currentPieceSubstring.match(this.EOLRegexp) || []).length
-
-                    const currentPieceNewLine = currentPiece.start.line + newLineFeedCount
-                    const currentPieceNewColumn = (currentPieceStartOffset + preDeleteLen) - buffer.lineStarts[currentPieceNewLine]
-
-                    newPieces.push(new Piece(
-                        currentPiece.position,
-                        currentPiece.start,
-                        { line: currentPieceNewLine, column: currentPieceNewColumn },
-                        newLineFeedCount,
-                        preDeleteLen
-                    ))
+                if (leftLen > 0) {
+                    newPieces.push(piece.slice(0, leftLen, this.buffers));
                 }
 
-                if (postDeleteLen > 0) {
-                    const buffer = this.buffers[currentPiece.position.type][currentPiece.position.bufferIndex]
-
-                    const currentPieceOriginalStartOffset = buffer.lineStarts[currentPiece.start.line] + currentPiece.start.column
-                    const currentPieceNewStartOffset = currentPieceOriginalStartOffset + currentPiece.length - postDeleteLen
-
-                    let currentPieceNewStartLine = currentPiece.start.line
-                    let currentPieceNewStartColumn = currentPiece.start.column
-
-                    if (currentPieceNewStartOffset >= currentPieceOriginalStartOffset) {
-                        const bufferSubstring = buffer.buffer.substring(currentPieceOriginalStartOffset, currentPieceNewStartOffset)
-                        const bufferSubstringLineCount = (bufferSubstring.match(this.EOLRegexp) || []).length
-
-                        currentPieceNewStartLine += bufferSubstringLineCount
-                        currentPieceNewStartColumn = currentPieceNewStartOffset - buffer.lineStarts[currentPieceNewStartLine]
-                    } else {
-                        const bufferSubstring = buffer.buffer.substring(currentPieceNewStartOffset, currentPieceOriginalStartOffset)
-                        const bufferSubstringLineCount = (bufferSubstring.match(this.EOLRegexp) || []).length
-
-                        currentPieceNewStartLine -= bufferSubstringLineCount
-                        currentPieceNewStartColumn = currentPieceNewStartOffset - buffer.lineStarts[currentPieceNewStartLine]
-                    }
-
-
-                    const currentPieceNewEndBufferSubstring = buffer.buffer.substring(buffer.lineStarts[currentPieceNewStartLine], buffer.lineStarts[currentPieceNewStartLine] + postDeleteLen)
-                    const bufferSubstringLineCount = (currentPieceNewEndBufferSubstring.match(this.EOLRegexp) || []).length
-
-                    const currentPieceEndNewLine = currentPieceNewStartLine + bufferSubstringLineCount
-                    const currentPieceEndNewColumn = (buffer.lineStarts[currentPieceNewStartLine] + postDeleteLen) - buffer.lineStarts[currentPieceEndNewLine]
-
-
-                    newPieces.push(new Piece(
-                        currentPiece.position,
-                        {
-                            line: currentPieceNewStartLine,
-                            column: currentPieceNewStartColumn
-                        },
-                        {
-                            line: currentPieceEndNewLine,
-                            column: currentPieceEndNewColumn
-                        },
-                        bufferSubstringLineCount,
-                        postDeleteLen
-                    ))
+                if (rightLen > 0) {
+                    newPieces.push(piece.slice(rightStart, rightStart + rightLen, this.buffers));
                 }
             }
 
-            offset += currentPiece.length
+            this.pieces = newPieces
+            this.cachedLinesContent.clear()
+            this.cachedLinesContentHighlighted.clear()
+            this.computeBufferMetaData()
         }
-
-        this.pieces = newPieces
-        this.cachedLinesContent.clear()
-        this.cachedLinesContentHighlighted.clear()
-        this.computeBufferMetaData()
     }
 
     setLineContentInCache(start, end, content, isHighlightCache) {
@@ -442,7 +451,7 @@ export class PieceTable {
             if (line >= lineCount && line <= lineCount + piece.lineFeedCount)
                 return { lineCount, offset, piece, index }
 
-            offset    += piece.length
+            offset += piece.length
             lineCount += piece.lineFeedCount
         }
 
