@@ -39,11 +39,12 @@ export class TextEditor {
         }
     }
     canEnterSelectionChange = true
-    TAB_VALUE = '&nbsp;&nbsp;&nbsp;&nbsp;'
+    TAB_VALUE = '\t'
     EXTRA_BUFFER_ROW_OFFSET = 30
     IS_SHIFT_KEY_PRESSED = false
 
     DEFAULT_EOL
+    EOLRegexp
 
     TEMP_CursorBeforeInsert = null
     TEMP_CursorBeforeDelete = null
@@ -294,10 +295,12 @@ export class TextEditor {
         let fileInfoInstance
 
         this.DEFAULT_EOL = window.electron.DEFAULT_SYSTEM_EOL
+        this.EOLRegexp = new RegExp(this.DEFAULT_EOL, 'g')
         this.emitter = new Emitter()
 
         if (fileData) {
             this.DEFAULT_EOL = fileData.defaultEOL || window.electron.DEFAULT_SYSTEM_EOL
+            this.EOLRegexp = new RegExp(fileData.defaultEOL, 'g')
             textBufferInstance = new PieceTable(this, fileData.buffer)
             fileInfoInstance = new FileInfo(fileData.name, fileData.path, fileData.extension)
         } else {
@@ -511,7 +514,7 @@ export class TextEditor {
             if (this.selection.isCollapsed())
                 this.cursor.showLineSelectedPosition()
 
-            console.log(this.textBuffer.getLineColumnToBufferOffset(this.cursor.getLine(), this.cursor.getCol()))
+            console.log(this.textBuffer.getBufferOffsetFromLineCol(this.cursor.getLine(), this.cursor.getCol()))
         })
 
         this.DOM.editorElement.addEventListener('mousedown', (ev) => {
@@ -939,8 +942,8 @@ export class TextEditor {
 
         clearTimeout(this.timeoutBatchDelete)
         this.timeoutBatchDelete = setTimeout(() => {
-            const currentDocumentOffset = this.textBuffer.getLineColumnToBufferOffset(this.cursor.getLine(), this.cursor.getCol())
-            const documentOffsetBeforeDelete = this.textBuffer.getLineColumnToBufferOffset(this.TEMP_CursorBeforeDelete.line, this.TEMP_CursorBeforeDelete.col)
+            const currentDocumentOffset = this.textBuffer.getBufferOffsetFromLineCol(this.cursor.getLine(), this.cursor.getCol())
+            const documentOffsetBeforeDelete = this.textBuffer.getBufferOffsetFromLineCol(this.TEMP_CursorBeforeDelete.line, this.TEMP_CursorBeforeDelete.col)
 
             this.textBuffer.delete(currentDocumentOffset, documentOffsetBeforeDelete - currentDocumentOffset)
             this.highlightContent().then(() => this.updateDOM())
@@ -982,13 +985,8 @@ export class TextEditor {
     }
 
     insertText(text) {
-        const textLineFeedCount = (text.match(/\n|\r\n|\r/g) || []).length
-        let currentTextEOL = this.DEFAULT_EOL
-
-        if (textLineFeedCount > 0) {
-            currentTextEOL = this.detectEOL(text)
-            text = this.normalizeEOL(text, currentTextEOL)
-        }
+        text = this.normalizeEOL(text, this.DEFAULT_EOL)
+        const textLineFeedCount = (text.match(this.EOLRegexp) || []).length
 
         // if has selection, replace all the selected text with the typed char
         // that is, delete the selected data (call handleDelete) and insert the char
@@ -1025,11 +1023,11 @@ export class TextEditor {
                 // the viewport is small enough for us to do a .split operation, it will be fast and practical
 
                 this.incrementLineModelPositions(lineBeforeInsert, textLineFeedCount)
-                const arrayOfLines = text.split(currentTextEOL)
+                const arrayOfLines = text.split(this.DEFAULT_EOL)
 
                 const firstLineContent = arrayOfLines[0]
                 currentLineModelContent.splice(columnBeforeInsert, 0, firstLineContent)
-                currentLineModel.update(currentLineModelContent.join('').replace(currentTextEOL, ''))
+                currentLineModel.update(currentLineModelContent.join('').replace(this.EOLRegexp, ''))
 
                 for (let index = 1; index < arrayOfLines.length; index++) {
                     const content = arrayOfLines[index]
@@ -1067,7 +1065,7 @@ export class TextEditor {
                 console.log(this.intermediaryBufferToInsertAtPiece)
                 console.log(this.currentLineintermediaryBuffer)
     
-                const documentOffset = this.textBuffer.getLineColumnToBufferOffset(this.TEMP_CursorBeforeInsert.line, this.TEMP_CursorBeforeInsert.col)
+                const documentOffset = this.textBuffer.getBufferOffsetFromLineCol(this.TEMP_CursorBeforeInsert.line, this.TEMP_CursorBeforeInsert.col)
                 console.log(documentOffset)
     
                 this.textBuffer.insert(documentOffset, this.intermediaryBufferToInsertAtPiece)
