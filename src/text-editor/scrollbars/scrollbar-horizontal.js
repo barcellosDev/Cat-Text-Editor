@@ -6,7 +6,7 @@
   </div>
 */
 
-import { TextEditor } from "../text-core"
+import { DOMUI } from "../dom-ui"
 
 export class ScrollBarHorizontal {
     container
@@ -14,11 +14,14 @@ export class ScrollBarHorizontal {
     thumb
     isDragging = false
 
-    /** @type {TextEditor} */
-    textEditor
+    /** @type {DOMUI} */
+    textEditorUI
 
-    constructor(textEditor) {
-        this.textEditor = textEditor
+    emitter
+
+    constructor(domUI, emitter) {
+        this.textEditorUI = domUI
+        this.emitter = emitter
 
         const container = document.createElement('div')
         container.className = 'custom-scrollbar'
@@ -45,7 +48,7 @@ export class ScrollBarHorizontal {
         this.thumb.addEventListener('mousedown', (e) => {
             this.isDragging = true;
             startX = e.pageX;
-            startScrollLeft = this.textEditor.DOM.textEditorContentWrapper.scrollLeft;
+            startScrollLeft = this.textEditorUI.textEditorContentWrapper.scrollLeft;
             document.body.style.userSelect = 'none';
         })
 
@@ -53,13 +56,13 @@ export class ScrollBarHorizontal {
             if (!this.isDragging) return
 
             const dx = e.pageX - startX;
-            const scrollRatio = this.textEditor.DOM.textEditorContentWrapper.scrollWidth / this.container.clientWidth;
-            this.textEditor.DOM.textEditorContentWrapper.scrollLeft = startScrollLeft + dx * scrollRatio;
+            const scrollRatio = this.textEditorUI.textEditorContentWrapper.scrollWidth / this.container.clientWidth;
+            this.textEditorUI.textEditorContentWrapper.scrollLeft = startScrollLeft + dx * scrollRatio;
 
             this.updateThumb()
         })
 
-        this.textEditor.DOM.textEditorMainContainer.appendChild(this.container)
+        this.textEditorUI.textEditorMainContainer.appendChild(this.container)
         this.updateThumb()
     }
 
@@ -74,9 +77,9 @@ export class ScrollBarHorizontal {
     }
 
     updateThumb() {
-        const scrollWidth = this.textEditor.DOM.textEditorContentWrapper.scrollWidth;
-        const clientWidth = this.textEditor.DOM.textEditorContentWrapper.clientWidth;
-        const scrollLeft = this.textEditor.DOM.textEditorContentWrapper.scrollLeft;
+        const scrollWidth = this.textEditorUI.textEditorContentWrapper.scrollWidth;
+        const clientWidth = this.textEditorUI.textEditorContentWrapper.clientWidth;
+        const scrollLeft = this.textEditorUI.textEditorContentWrapper.scrollLeft;
 
         const thumbWidth = (clientWidth / scrollWidth) * this.container.clientWidth;
         this.thumb.style.width = `${thumbWidth}px`;

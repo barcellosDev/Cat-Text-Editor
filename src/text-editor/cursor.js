@@ -1,5 +1,5 @@
 import { CatApp } from "./cat-app"
-import { TextEditor } from "./text-core"
+import { DOMUI } from "./dom-ui"
 
 export class Cursor {
     line = 0
@@ -9,20 +9,20 @@ export class Cursor {
     width = 2
     height = null
 
-    /** @type {TextEditor} */
-    textEditor
+    /** @type {DOMUI} */
+    textEditorUI
 
     _blinkVisible = true
     _blinkFrame = null
     _lastBlinkTime = 0
     _blinkInterval = 530 // ms
 
-    constructor(textEditor, line = 0, col = 0) {
-        this.textEditor = textEditor
+    constructor(domUI, line = 0, col = 0) {
+        this.textEditorUI = domUI
         this.line = line
         this.col = col
 
-        const cursorsArea = this.textEditor.DOM.textEditorContentContainer.querySelector('.cursors')
+        const cursorsArea = this.textEditorUI.textEditorContentContainer.querySelector('.cursors')
         const div = document.createElement('div')
         div.className = 'cursor'
         div.style.width = `${this.width}px`
@@ -79,21 +79,21 @@ export class Cursor {
     }
 
     hideLineSelectedPosition() {
-        this.textEditor.DOM.lineSelected.style.display = 'none'
+        this.textEditorUI.lineSelected.style.display = 'none'
     }
     
     showLineSelectedPosition() {
-        this.textEditor.DOM.lineSelected.style.display = 'block'
+        this.textEditorUI.lineSelected.style.display = 'block'
     }
 
     updateLineSelectedPosition() {
-        this.textEditor.DOM.lineSelected.style.height = `${CatApp.LINE_HEIGHT}px`
-        this.textEditor.DOM.lineSelected.style.top = `${this.line * CatApp.LINE_HEIGHT}px`
+        this.textEditorUI.lineSelected.style.height = `${CatApp.LINE_HEIGHT}px`
+        this.textEditorUI.lineSelected.style.top = `${this.line * CatApp.LINE_HEIGHT}px`
     }
 
     updateTextAreaToHandleKeyboardPosition() {
-        this.textEditor.DOM.textAreaToHandleKeyboard.style.top = `${this.line * CatApp.LINE_HEIGHT}px`
-        this.textEditor.DOM.textAreaToHandleKeyboard.style.left = `${this.col * CatApp.getFontWidth()}px`
+        this.textEditorUI.textAreaToHandleKeyboard.style.top = `${this.line * CatApp.LINE_HEIGHT}px`
+        this.textEditorUI.textAreaToHandleKeyboard.style.left = `${this.col * CatApp.getFontWidth()}px`
     }
 
     getLine() {
@@ -105,14 +105,7 @@ export class Cursor {
     }
 
     setLine(line) {
-        if (line > this.textEditor.textBuffer.lineCount) {
-            this.line = this.textEditor.textBuffer.lineCount
-        } else if (line < 0) {
-            this.line = 0
-        } else {
-            this.line = line
-        }
-
+        this.line = line
         const y = Math.floor(CatApp.LINE_HEIGHT * this.line)
         this.element.style.top = `${y}px`
         this.updateLineSelectedPosition()
@@ -120,16 +113,7 @@ export class Cursor {
     }
 
     setCol(col) {
-        const lineLength = this.textEditor.getLineModel(this.line).getContent().length
-
-        if (col > lineLength) {
-            this.col = lineLength
-        } else if (col < 0) {
-            this.col = 0
-        } else {
-            this.col = col
-        }
-
+        this.col = col
         const x = Math.round(CatApp.getFontWidth() * this.col)
         this.element.style.left = `${x}px`
         this.updateTextAreaToHandleKeyboardPosition()

@@ -1,14 +1,14 @@
 import { CatApp } from "./cat-app"
-import { TextEditor } from "./text-core"
+import { DOMUI } from "./dom-ui"
 
 export class Selection {
     buffer
 
-    /** @type {TextEditor} */
-    textEditor
+    /** @type {DOMUI} */
+    textEditorUI
 
-    constructor(textEditor) {
-        this.textEditor = textEditor
+    constructor(domUI) {
+        this.textEditorUI = domUI
         this.buffer = {
             start: { line: 0, col: 0 },
             end: { line: 0, col: 0 }
@@ -52,7 +52,7 @@ export class Selection {
             return
         }
 
-        const { extraStart, extraEnd } = this.textEditor.getExtraViewPortRange()
+        const { extraStart, extraEnd } = this.textEditorUI.getExtraViewPortRange()
 
         // forward selection (normal)
         if (this.getStart().line < this.getEnd().line) {
@@ -69,22 +69,22 @@ export class Selection {
             }
 
             for (let row = start; row < end; row++) {
-                let selectionDiv = this.textEditor.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${row}"]`)
+                let selectionDiv = this.textEditorUI.selectionArea.querySelector(`.selected-text[buffer-row="${row}"]`)
                 let newLeft = 0
 
-                const lineLength = this.textEditor.textBuffer.getLineLength(row)
-                const newTop = this.textEditor.getBufferLineToScreenY(row)
+                const lineLength = this.textEditorUI.textEditor.textBuffer.getLineLength(row)
+                const newTop = this.textEditorUI.getBufferLineToScreenY(row)
 
-                let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
+                let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditorUI.getBufferColumnToScreenX(lineLength)
 
                 if (row === this.getStart().line) {
-                    newLeft = this.textEditor.getBufferColumnToScreenX(this.getStart().col)
+                    newLeft = this.textEditorUI.getBufferColumnToScreenX(this.getStart().col)
                     newWidth = newWidth - newLeft
                 }
 
                 if (!selectionDiv) {
                     selectionDiv = this.buildSelectionWrapper(newLeft, newWidth, newTop)
-                    this.textEditor.DOM.selectionArea.appendChild(selectionDiv)
+                    this.textEditorUI.selectionArea.appendChild(selectionDiv)
                 }
 
                 this.updateSelectionWrapper(selectionDiv, { left: newLeft, width: newWidth })
@@ -106,22 +106,22 @@ export class Selection {
             }
 
             for (let row = start; row > end; row--) {
-                let selectionDiv = this.textEditor.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${row}"]`)
+                let selectionDiv = this.textEditorUI.selectionArea.querySelector(`.selected-text[buffer-row="${row}"]`)
 
-                const lineLength = this.textEditor.textBuffer.getLineLength(row)
+                const lineLength = this.textEditorUI.textEditor.textBuffer.getLineLength(row)
 
                 let newLeft = 0
-                let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditor.getBufferColumnToScreenX(lineLength)
+                let newWidth = lineLength === 0 ? CatApp.getFontWidth() : this.textEditorUI.getBufferColumnToScreenX(lineLength)
 
-                const newTop = this.textEditor.getBufferLineToScreenY(row)
+                const newTop = this.textEditorUI.getBufferLineToScreenY(row)
 
                 if (row === this.getStart().line) {
-                    newWidth = this.textEditor.getBufferColumnToScreenX(this.getStart().col)
+                    newWidth = this.textEditorUI.getBufferColumnToScreenX(this.getStart().col)
                 }
 
                 if (!selectionDiv) {
                     selectionDiv = this.buildSelectionWrapper(newLeft, newWidth, newTop)
-                    this.textEditor.DOM.selectionArea.appendChild(selectionDiv)
+                    this.textEditorUI.selectionArea.appendChild(selectionDiv)
                 }
 
                 this.updateSelectionWrapper(selectionDiv, { left: newLeft, width: newWidth })
@@ -129,36 +129,36 @@ export class Selection {
         }
 
 
-        let left = this.textEditor.getBufferColumnToScreenX(this.getStart().col)
-        let right = this.textEditor.getBufferColumnToScreenX(this.getEnd().col)
+        let left = this.textEditorUI.getBufferColumnToScreenX(this.getStart().col)
+        let right = this.textEditorUI.getBufferColumnToScreenX(this.getEnd().col)
         let width = right - left
-        let top = this.textEditor.getBufferLineToScreenY(this.getEnd().line)
+        let top = this.textEditorUI.getBufferLineToScreenY(this.getEnd().line)
 
         if (width < 0) {
             left += width
             width = Math.abs(width)
         }
 
-        let selectionDiv = this.textEditor.DOM.selectionArea.querySelector(`.selected-text[buffer-row="${this.textEditor.cursor.getLine()}"]`)
+        let selectionDiv = this.textEditorUI.selectionArea.querySelector(`.selected-text[buffer-row="${this.textEditorUI.cursor.getLine()}"]`)
 
         if (this.isMultiLine()) {
             left = 0
             width = right
 
             if (this.isReversed()) {
-                left = this.textEditor.getBufferColumnToScreenX()
-                width = this.textEditor.getBufferColumnToScreenX(this.textEditor.textBuffer.getLineLength(this.textEditor.cursor.getLine())) - left
+                left = this.textEditorUI.getBufferColumnToScreenX()
+                width = this.textEditorUI.getBufferColumnToScreenX(this.textEditorUI.textEditor.textBuffer.getLineLength(this.textEditorUI.cursor.getLine())) - left
             }
         }
 
         if (!selectionDiv) {
             selectionDiv = this.buildSelectionWrapper(left, width, top)
-            this.textEditor.DOM.selectionArea.appendChild(selectionDiv)
+            this.textEditorUI.selectionArea.appendChild(selectionDiv)
         }
 
         this.updateSelectionWrapper(selectionDiv, { left, width, top })
 
-        this.textEditor.DOM.selectionArea
+        this.textEditorUI.selectionArea
             .querySelectorAll(`[buffer-row]`)
             .forEach(div => {
                 const bufferRow = Number(div.getAttribute('buffer-row'))
@@ -181,7 +181,7 @@ export class Selection {
         textSelectionDiv.style.width = `${width}px`
         textSelectionDiv.style.height = `${CatApp.LINE_HEIGHT}px`
         textSelectionDiv.style.top = `${top}px`
-        textSelectionDiv.setAttribute('buffer-row', this.textEditor.getScreenYToBuffer(top))
+        textSelectionDiv.setAttribute('buffer-row', this.textEditorUI.getScreenYToBuffer(top))
 
         if (left === 0) {
             textSelectionDiv.style.borderTopLeftRadius = '0px'
@@ -231,30 +231,30 @@ export class Selection {
     }
 
     collapseToStart() {
-        this.textEditor.DOM.selectionArea.innerHTML = ''
+        this.textEditorUI.selectionArea.innerHTML = ''
         window.getSelection().removeAllRanges()
 
         this.buffer.end = this.buffer.start
-        this.textEditor.cursor.setLine(this.getStart().line)
-        this.textEditor.cursor.setCol(this.getStart().col)
+        this.textEditorUI.setLine(this.getStart().line)
+        this.textEditorUI.setCol(this.getStart().col)
     }
 
     collapseToEnd() {
-        this.textEditor.DOM.selectionArea.innerHTML = ''
+        this.textEditorUI.selectionArea.innerHTML = ''
         window.getSelection().removeAllRanges()
         this.buffer.start = this.buffer.end
-        this.textEditor.cursor.setLine(this.getEnd().line)
-        this.textEditor.cursor.setCol(this.getEnd().col)
+        this.textEditorUI.setLine(this.getEnd().line)
+        this.textEditorUI.setCol(this.getEnd().col)
     }
 
     getMaxRenderedBufferRow() {
-        if (this.textEditor.DOM.selectionArea.childElementCount === 0)
+        if (this.textEditorUI.selectionArea.childElementCount === 0)
             return
 
-        let max = this.textEditor.DOM.selectionArea.querySelector('.selected-text:last-child').getAttribute('buffer-row')
+        let max = this.textEditorUI.selectionArea.querySelector('.selected-text:last-child').getAttribute('buffer-row')
 
-        for (let index = 0; index < this.textEditor.DOM.selectionArea.children.length; index++) {
-            const bufferRow = Number(this.textEditor.DOM.selectionArea.children[index].getAttribute('buffer-row'))
+        for (let index = 0; index < this.textEditorUI.selectionArea.children.length; index++) {
+            const bufferRow = Number(this.textEditorUI.selectionArea.children[index].getAttribute('buffer-row'))
 
             if (bufferRow > max)
                 max = bufferRow
@@ -264,13 +264,13 @@ export class Selection {
     }
 
     getMinRenderedBufferRow() {
-        if (this.textEditor.DOM.selectionArea.childElementCount === 0)
+        if (this.textEditorUI.selectionArea.childElementCount === 0)
             return
 
-        let min = this.textEditor.DOM.selectionArea.firstElementChild.getAttribute('buffer-row')
+        let min = this.textEditorUI.selectionArea.firstElementChild.getAttribute('buffer-row')
 
-        for (let index = 0; index < this.textEditor.DOM.selectionArea.children.length; index++) {
-            const bufferRow = Number(this.textEditor.DOM.selectionArea.children[index].getAttribute('buffer-row'))
+        for (let index = 0; index < this.textEditorUI.selectionArea.children.length; index++) {
+            const bufferRow = Number(this.textEditorUI.selectionArea.children[index].getAttribute('buffer-row'))
 
             if (bufferRow < min)
                 min = bufferRow
@@ -284,6 +284,6 @@ export class Selection {
             start: { line: 0, col: 0 },
             end: { line: 0, col: 0 }
         }
-        this.textEditor.DOM.selectionArea.innerHTML = ''
+        this.textEditorUI.selectionArea.innerHTML = ''
     }
 }
