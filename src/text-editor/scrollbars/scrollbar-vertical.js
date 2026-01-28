@@ -6,7 +6,7 @@
   </div>
 */
 
-import { TextEditor } from "../text-core"
+import { DOMUI } from "../dom-ui"
 
 export class ScrollBarVertical {
     container
@@ -15,11 +15,12 @@ export class ScrollBarVertical {
     isDragging = false
     lastScrollTop = 0
 
-    /** @type {TextEditor} */
-    textEditor
+    /** @type {DOMUI} */
+    textEditorUI
 
-    constructor(textEditor) {
-        this.textEditor = textEditor
+    constructor(domUI, emitter) {
+        this.textEditorUI = domUI
+        this.emitter = emitter
 
         const container = document.createElement('div')
         container.className = 'custom-scrollbar'
@@ -47,7 +48,7 @@ export class ScrollBarVertical {
         this.thumb.addEventListener('mousedown', (e) => {
             this.isDragging = true;
             startY = e.pageY;
-            startScrollTop = this.textEditor.DOM.textEditorContentWrapper.scrollTop;
+            startScrollTop = this.textEditorUI.textEditorContentWrapper.scrollTop;
             document.body.style.userSelect = 'none';
         })
 
@@ -55,30 +56,30 @@ export class ScrollBarVertical {
             if (!this.isDragging) return
 
             const dy = e.pageY - startY;
-            const scrollRatioV = this.textEditor.DOM.textEditorContentWrapper.scrollHeight / this.container.clientHeight;
-            this.textEditor.DOM.textEditorContentWrapper.scrollTop = startScrollTop + dy * scrollRatioV;
+            const scrollRatioV = this.textEditorUI.textEditorContentWrapper.scrollHeight / this.container.clientHeight;
+            this.textEditorUI.textEditorContentWrapper.scrollTop = startScrollTop + dy * scrollRatioV;
             
             this.updateThumb()
             
-            if (this.textEditor.DOM.textEditorContentWrapper.scrollTop !== this.lastScrollTop) {
-                this.textEditor.emitter.emit("vertical-scroll")
+            if (this.textEditorUI.textEditorContentWrapper.scrollTop !== this.lastScrollTop) {
+                this.emitter.emit("ScrollBarVertical:moved")
             }
             
-            this.lastScrollTop = this.textEditor.DOM.textEditorContentWrapper.scrollTop
+            this.lastScrollTop = this.textEditorUI.textEditorContentWrapper.scrollTop
         })
 
-        this.textEditor.DOM.textEditorContentWrapper.addEventListener('wheel', () => {
+        this.textEditorUI.textEditorContentWrapper.addEventListener('wheel', () => {
             this.updateThumb()
 
-            if (this.textEditor.DOM.textEditorContentWrapper.scrollTop !== this.lastScrollTop) {
-                this.textEditor.emitter.emit("vertical-scroll")
+            if (this.textEditorUI.textEditorContentWrapper.scrollTop !== this.lastScrollTop) {
+                this.emitter.emit("ScrollBarVertical:moved")
             }
             
-            this.lastScrollTop = this.textEditor.DOM.textEditorContentWrapper.scrollTop
+            this.lastScrollTop = this.textEditorUI.textEditorContentWrapper.scrollTop
             
         }, { passive: true })
         
-        this.textEditor.DOM.textEditorMainContainer.appendChild(this.container)
+        this.textEditorUI.textEditorMainContainer.appendChild(this.container)
         this.updateThumb()
     }
 
@@ -94,9 +95,9 @@ export class ScrollBarVertical {
 
     updateThumb() {
         const MIN_HEIGHT_IN_PX = 20
-        const scrollHeight = this.textEditor.DOM.textEditorContentWrapper.scrollHeight;
-        const clientHeight = this.textEditor.DOM.textEditorContentWrapper.clientHeight;
-        const scrollTop = this.textEditor.DOM.textEditorContentWrapper.scrollTop;
+        const scrollHeight = this.textEditorUI.textEditorContentWrapper.scrollHeight;
+        const clientHeight = this.textEditorUI.textEditorContentWrapper.clientHeight;
+        const scrollTop = this.textEditorUI.textEditorContentWrapper.scrollTop;
 
         const thumbHeight = (clientHeight / scrollHeight) * this.container.clientHeight;
         this.thumb.style.height = `${thumbHeight < MIN_HEIGHT_IN_PX ? MIN_HEIGHT_IN_PX : thumbHeight}px`;
@@ -106,7 +107,7 @@ export class ScrollBarVertical {
     }
 
     scrollNowTo(yCoordinate) {
-        this.textEditor.DOM.textEditorContentWrapper.scroll({
+        this.textEditorUI.textEditorContentWrapper.scroll({
             top: yCoordinate
         })
         this.updateThumb()

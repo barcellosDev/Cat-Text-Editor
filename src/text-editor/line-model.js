@@ -1,6 +1,5 @@
 import { SHIKI } from "./highlighter";
 import { CatApp } from "./cat-app";
-import { TextEditor } from "./text-core";
 
 export class LineModel {
     /** @type {HTMLElement} */
@@ -8,26 +7,19 @@ export class LineModel {
 
     /** @type {HTMLElement} */
     lineCountElement = null
-
-    /** @type {TextEditor} */
-    textEditor
     
     highlight
     content
     index
     DOMParser
 
-    constructor(textEditor, content, index, highlight = false) {
-        this.textEditor = textEditor
+    constructor(content, index, highlight = false) {
         this.content = content
         this.index = index
         this.DOMParser = new DOMParser()
         this.highlight = highlight
         this.lineElement = this.buildLine()
         this.lineCountElement = this.buildLineCount()
-
-        this.textEditor.DOM.editorElement.appendChild(this.lineElement)
-        this.textEditor.DOM.editorLinesElement.appendChild(this.lineCountElement)
     }
 
     getContent() {
@@ -85,7 +77,7 @@ export class LineModel {
         spanRoot.className = 'root'
         
         if (highlight && this.highlight) {
-            let finalHTML = SHIKI.highlight(content, this.textEditor.fileInfo.extension)
+            let finalHTML = SHIKI.highlight(content)
             finalHTML = this.DOMParser.parseFromString(finalHTML, 'text/html').querySelector('.line').innerHTML
     
             spanRoot.innerHTML = finalHTML

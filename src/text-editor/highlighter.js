@@ -9,6 +9,7 @@ export class SHIKI {
         '.php': 'php',
         '.html': 'html'
     }
+    static selectedExtension = null
 
     static shiki = null
 
@@ -18,13 +19,19 @@ export class SHIKI {
                 themes: [this.selectedThemeName],
                 langs: ['javascript', 'php', 'html']
             })
-            return
         }
     }
 
-    static highlight(text, extension) {
+    static setExtension(extension) {
+        if (!extension)
+            extension = ".txt"
+        
+        this.selectedExtension = extension
+    }
+
+    static highlight(text) {
         return this.shiki.codeToHtml(text, {
-            lang: this.fileExtensionToLang[extension],
+            lang: this.fileExtensionToLang[this.selectedExtension],
             theme: this.selectedThemeName
         })
     }

@@ -47,8 +47,8 @@ export class CatApp {
     }
 
     static setCursorPositionInFooter() {
-        const ln = this.activeEditor.cursor.getLine()+1
-        const col = this.activeEditor.cursor.getCol()+1
+        const ln = this.activeEditor.UI.cursor.getLine()+1
+        const col = this.activeEditor.UI.cursor.getCol()+1
         
         if (!isNaN(ln) && !isNaN(col))
             this.getCursorPositionInFooter().innerText = `Ln ${ln} Col ${col}`
@@ -119,7 +119,7 @@ export class CatApp {
     }
 
     static hideEditors() {
-        this.editors.forEach(editor => editor.DOM.hide())
+        this.editors.forEach(editor => editor.UI.hide())
     }
 
     static selectTab(index, currentTabElement) {
@@ -145,7 +145,7 @@ export class CatApp {
     }
 
     static closeTab(index) {
-        this.editors[index].DOM.delete()
+        this.editors[index].UI.delete()
         this.editors.splice(index, 1)
         this.renderTabs()
 
